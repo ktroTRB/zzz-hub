@@ -10,7 +10,8 @@ local GAMES = {
         emoji = "🧠",
         scripts = {
             {name = "Ghost Hub", url = "https://raw.githubusercontent.com/ktroTRB/zzz-hub/refs/heads/main/Ghost%20hub", color = Color3.fromRGB(0, 170, 255)},
-            {name = "Zeta Hub", url = "https://raw.githubusercontent.com/ktroTRB/zzz-hub/refs/heads/main/zeta%20hub", color = Color3.fromRGB(255, 100, 0)}
+            {name = "Zeta Hub", url = "https://raw.githubusercontent.com/ktroTRB/zzz-hub/refs/heads/main/zeta%20hub", color = Color3.fromRGB(255, 100, 0)},
+            {name = "Best Arbix Hub", url = "https://raw.githubusercontent.com/ktroTRB/zzz-hub/refs/heads/main/Arbix%20Hub", color = Color3.fromRGB(0, 255, 127)}
         }
     },
     
@@ -41,7 +42,7 @@ local GAMES = {
         name = "Dead Rails",
         emoji = "🚂",
         scripts = {
-            {name = "A Lot of Features dont work rn", url = "https://raw.githubusercontent.com/ktroTRB/zzz-hub/refs/heads/main/Ringta%20hub", color = Color3.fromRGB(128, 0, 128)},
+            {name = "A Lot of Features", url = "https://raw.githubusercontent.com/ktroTRB/zzz-hub/refs/heads/main/Ringta%20hub", color = Color3.fromRGB(128, 0, 128)},
             {name = "Best Auto Bone", url = "https://raw.githubusercontent.com/ktroTRB/zzz-hub/refs/heads/main/zzzhubautobone", color = Color3.fromRGB(75, 0, 130)}
         }
     },
