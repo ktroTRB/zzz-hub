@@ -11,7 +11,8 @@ local GAMES = {
         scripts = {
             {name = "Ghost Hub", url = "https://raw.githubusercontent.com/ktroTRB/zzz-hub/refs/heads/main/Ghost%20hub", color = Color3.fromRGB(0, 170, 255)},
             {name = "Zeta Hub", url = "https://raw.githubusercontent.com/ktroTRB/zzz-hub/refs/heads/main/zeta%20hub", color = Color3.fromRGB(255, 100, 0)},
-            {name = "Best Arbix Hub", url = "https://raw.githubusercontent.com/ktroTRB/zzz-hub/refs/heads/main/Arbix%20Hub", color = Color3.fromRGB(0, 255, 127)}
+            {name = " Arbix Hub", url = "https://raw.githubusercontent.com/ktroTRB/zzz-hub/refs/heads/main/Arbix%20Hub", color = Color3.fromRGB(0, 255, 127)},
+            {name = "water Hub", url = "https://raw.githubusercontent.com/ktroTRB/zzz-hub/refs/heads/main/water%20hub.lua",  color = Color3.fromRGB(0, 255, 127)}
         }
     },
     
