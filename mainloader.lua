@@ -1,5 +1,8 @@
--- Universal Hub Chooser
--- Supports multiple games with multiple script options each
+ -- Universal Hub Chooser - Fixed Version
+-- 50% screen size with scrollable buttons that actually show up
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
 
 -- Game configurations
 local GAMES = {
@@ -11,8 +14,9 @@ local GAMES = {
         scripts = {
             {name = "Ghost Hub", url = "https://raw.githubusercontent.com/ktroTRB/zzz-hub/refs/heads/main/Ghost%20hub", color = Color3.fromRGB(0, 170, 255)},
             {name = "Zeta Hub", url = "https://raw.githubusercontent.com/ktroTRB/zzz-hub/refs/heads/main/zeta%20hub", color = Color3.fromRGB(255, 100, 0)},
-            {name = " Arbix Hub", url = "https://raw.githubusercontent.com/ktroTRB/zzz-hub/refs/heads/main/Arbix%20Hub", color = Color3.fromRGB(0, 255, 127)},
-            {name = "water Hub", url = "https://raw.githubusercontent.com/ktroTRB/zzz-hub/refs/heads/main/water%20hub.lua",  color = Color3.fromRGB(0, 255, 127)}
+            {name = "Arbix Hub", url = "https://raw.githubusercontent.com/ktroTRB/zzz-hub/refs/heads/main/Arbix%20Hub", color = Color3.fromRGB(0, 255, 127)},
+            {name = "Water Hub", url = "https://raw.githubusercontent.com/ktroTRB/zzz-hub/refs/heads/main/water%20hub.lua", color = Color3.fromRGB(0, 191, 255)},
+            {name = "Luno Hub", url = "https://raw.githubusercontent.com/ktroTRB/zzz-hub/refs/heads/main/Luno%20hub", color = Color3.fromRGB(138, 43, 226)} 
         }
     },
     
@@ -57,6 +61,37 @@ local GAMES = {
             {name = "Basic Blade", url = "your-blade-basic-url", color = Color3.fromRGB(128, 0, 128)},
             {name = "Advanced Blade", url = "your-blade-advanced-url", color = Color3.fromRGB(75, 0, 130)}
         }
+    },
+    
+    -- Musical Chairs
+    {
+        placeIds = {113323927469374},
+        name = "Musical Chairs",
+        emoji = "🪑",
+        scripts = {
+            {name = "Musical Chairs", url = "https://raw.githubusercontent.com/ktroTRB/perfect-hub/refs/heads/main/Musical%20Chairs.lua", color = Color3.fromRGB(255, 105, 180)}
+        }
+    },
+    
+    -- Ink Game
+    {
+        placeIds = {125009265613167, 99567941238278},
+        name = "Ink Game",
+        emoji = "🟢",
+        scripts = {
+            {name = "Help players only green light red light", url = "https://raw.githubusercontent.com/ktroTRB/perfect-hub/refs/heads/main/Ink%20Game%20%7C%20Help%20players", color = Color3.fromRGB(0, 255, 0)},
+            {name = "ink op", url = "https://raw.githubusercontent.com/ktroTRB/zzz-hub/refs/heads/main/INK%20GAME%20OP.lua", color = Color3.fromRGB(34, 139, 34)}
+        }
+    },
+    
+    -- Brookhaven
+    {
+        placeIds = {4924922222},
+        name = "Brookhaven",
+        emoji = "🏠",
+        scripts = {
+            {name = "zzz hub op", url = "https://raw.githubusercontent.com/ktroTRB/zzz-hub/refs/heads/main/Brookhaven%20RP.lua", color = Color3.fromRGB(64, 224, 208)}
+        }
     }
 }
 
@@ -91,16 +126,13 @@ local function createChoiceMenu(gameConfig)
     
     -- Create GUI
     local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "zzz hub "
+    screenGui.Name = "zzz hub chooser"
     screenGui.Parent = playerGui
     
-    -- Calculate frame height based on number of scripts
-    local frameHeight = 120 + (#gameConfig.scripts * 55)
-    
-    -- Main frame
+    -- Main frame - 70% of screen size
     local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0, 380, 0, frameHeight)
-    frame.Position = UDim2.new(0.5, -190, 0.5, -frameHeight/2)
+    frame.Size = UDim2.new(0.7, 0, 0.7, 0)
+    frame.Position = UDim2.new(0.15, 0, 0.15, 0)
     frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
     frame.BorderSizePixel = 2
     frame.BorderColor3 = Color3.fromRGB(255, 255, 255)
@@ -133,17 +165,50 @@ local function createChoiceMenu(gameConfig)
     subtitle.Font = Enum.Font.SourceSans
     subtitle.Parent = frame
     
+    -- Create ScrollingFrame for buttons
+    local scrollFrame = Instance.new("ScrollingFrame")
+    scrollFrame.Size = UDim2.new(1, -10, 1, -95)
+    scrollFrame.Position = UDim2.new(0, 5, 0, 85)
+    scrollFrame.BackgroundTransparency = 1
+    scrollFrame.BorderSizePixel = 0
+    scrollFrame.ScrollBarThickness = 10
+    scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(150, 150, 150)
+    scrollFrame.ScrollBarImageTransparency = 0.3
+    scrollFrame.ScrollingDirection = Enum.ScrollingDirection.Y
+    scrollFrame.ScrollingEnabled = true
+    scrollFrame.Parent = frame
+    
+    -- Add UIListLayout for automatic button positioning
+    local listLayout = Instance.new("UIListLayout")
+    listLayout.FillDirection = Enum.FillDirection.Vertical
+    listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    listLayout.Padding = UDim.new(0, 10)
+    listLayout.Parent = scrollFrame
+    
+    -- Add padding to the scroll area
+    local topPadding = Instance.new("UIPadding")
+    topPadding.PaddingTop = UDim.new(0, 5)
+    topPadding.PaddingLeft = UDim.new(0, 15)
+    topPadding.PaddingRight = UDim.new(0, 15)
+    topPadding.PaddingBottom = UDim.new(0, 5)
+    topPadding.Parent = scrollFrame
+    
+    -- Update canvas size after layout
+    listLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        scrollFrame.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y + 10)
+    end)
+    
     -- Create buttons for each script
     for i, script in pairs(gameConfig.scripts) do
         local button = Instance.new("TextButton")
-        button.Size = UDim2.new(0.85, 0, 0, 45)
-        button.Position = UDim2.new(0.075, 0, 0, 90 + (i-1) * 55)
+        button.Size = UDim2.new(1, -10, 0, 45)
         button.BackgroundColor3 = script.color
         button.Text = script.name
         button.TextColor3 = Color3.fromRGB(255, 255, 255)
         button.TextScaled = true
         button.Font = Enum.Font.SourceSansBold
-        button.Parent = frame
+        button.LayoutOrder = i
+        button.Parent = scrollFrame
         
         -- Button corner
         local buttonCorner = Instance.new("UICorner")
@@ -153,9 +218,9 @@ local function createChoiceMenu(gameConfig)
         -- Hover effect
         local originalColor = script.color
         local hoverColor = Color3.fromRGB(
-            math.max(0, originalColor.R * 255 - 20),
-            math.max(0, originalColor.G * 255 - 20),
-            math.max(0, originalColor.B * 255 - 20)
+            math.min(255, originalColor.R * 255 + 30),
+            math.min(255, originalColor.G * 255 + 30),
+            math.min(255, originalColor.B * 255 + 30)
         )
         
         button.MouseEnter:Connect(function()
@@ -172,12 +237,19 @@ local function createChoiceMenu(gameConfig)
             title.Text = "Loading " .. script.name .. "..."
             button.Text = "Loading..."
             
-            -- Hide other buttons
-            for j, otherScript in pairs(gameConfig.scripts) do
-                if j ~= i then
-                    frame:FindFirstChild("TextButton"):Destroy()
-                end
-            end
+            -- Hide scrollFrame and show loading
+            scrollFrame.Visible = false
+            
+            -- Create loading indicator
+            local loadingLabel = Instance.new("TextLabel")
+            loadingLabel.Size = UDim2.new(1, 0, 0, 50)
+            loadingLabel.Position = UDim2.new(0, 0, 0.5, -25)
+            loadingLabel.BackgroundTransparency = 1
+            loadingLabel.Text = "Loading " .. script.name .. "..."
+            loadingLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+            loadingLabel.TextScaled = true
+            loadingLabel.Font = Enum.Font.SourceSansBold
+            loadingLabel.Parent = frame
             
             -- Load script
             pcall(function()
