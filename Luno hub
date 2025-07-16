@@ -1,19 +1,19 @@
-local GUI = loadstring(game:HttpGet(
-    "https://raw.githubusercontent.com/basedgooner/SimpleLibrary/refs/heads/main/Luno%20Library"
-))()
+local lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/Just3itx/3itx-UI-LIB/refs/heads/main/Lib"))()
+local FlagsManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/Just3itx/3itx-UI-LIB/refs/heads/main/ConfigManager"))()
 
-local Players           = game:GetService("Players")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local UserInputService  = game:GetService("UserInputService")
-local RunService        = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 local PathfindingService = game:GetService("PathfindingService")
+local HttpService = game:GetService("HttpService")
 
-local player     = Players.LocalPlayer
-local buyRemote  = ReplicatedStorage.Packages.Net["RF/CoinsShopService/RequestBuy"]
+local player = Players.LocalPlayer
+local buyRemote = ReplicatedStorage.Packages.Net["RF/CoinsShopService/RequestBuy"]
 
 local AnimalsModule = require(ReplicatedStorage.Datas.Animals)
 local TraitsModule = require(ReplicatedStorage.Datas.Traits)
-local GameModule = require(ReplicatedStorage.Shared.Game)
+local MutationsModule = require(ReplicatedStorage.Datas.Mutations)
 
 require(ReplicatedStorage.Controllers:WaitForChild("CharacterController"))
 
@@ -25,21 +25,30 @@ pcall(function()
     PlotController = require(ReplicatedStorage.Controllers:WaitForChild("PlotController", 2))
 end)
 
-local window = GUI:CreateWindow("Steal A Brainrot")
-local page   = window:CreatePage("Movement")
-local visualsPage = window:CreatePage("Visuals")
-local shopPage = window:CreatePage("Shop")
+local main = lib:Load({
+    Title = 'Luno hub',
+    ToggleButton = "RBXID or GetCustomasset", -- You'll need to specify a valid RBXID or custom asset
+    BindGui = Enum.KeyCode.RightControl,
+})
 
-local checking       = false
-local walkSpeed      = 40
-local keys           = {}
-local charConn       = nil
+local movementTab = main:AddTab("Movement")
+local visualsTab = main:AddTab("Visuals")
+local shopTab = main:AddTab("Shop")
+
+main:SelectTab() -- Selects the first tab by default, which is "Movement"
+
+-- Variables (re-declared for scope within the new UI structure)
+local checking = false
+local walkSpeed = 40
+local keys = {}
+local charConn = nil
 local infiniteJumpEnabled = false
-local bypassMode     = "None"
+local bypassMode = "None"
 local pathfindingEnabled = false
 local pathfindingCoroutine = nil
 local notifiedThresholds = {}
 
+-- Utility Functions (retained from original script)
 do
     local mt, old = getrawmetatable(game), nil
     setreadonly(mt, false)
@@ -47,12 +56,12 @@ do
 
     mt.__newindex = newcclosure(function(t, k, v)
         if checking
-           and not checkcaller()
-           and k == "Health"
-           and v == 0
-           and typeof(t) == "Instance"
-           and t:IsA("Humanoid")
-           and t.Parent == player.Character then
+            and not checkcaller()
+            and k == "Health"
+            and v == 0
+            and typeof(t) == "Instance"
+            and t:IsA("Humanoid")
+            and t.Parent == player.Character then
             return
         end
         return old(t, k, v)
@@ -112,14 +121,14 @@ local function findAndEquipItem(itemName, activate)
 
     local item = backpack:FindFirstChild(itemName) or char:FindFirstChild(itemName)
     if not item then
-        window:Notify("Purchasing "..itemName, "info")
+        lib:Notification("Info", "Purchasing " .. itemName, 3) -- Changed to 3itx-UI-LIB Notification
         pcall(function() return buyRemote:InvokeServer(itemName) end)
         task.wait(0.5)
         item = backpack:WaitForChild(itemName, 0.2)
     end
 
     if not item then
-        window:Notify(itemName.." not found after purchase attempt.", "warning")
+        lib:Notification("Warning", itemName .. " not found after purchase attempt.", 3) -- Changed to 3itx-UI-LIB Notification
         return false
     end
 
@@ -158,42 +167,70 @@ local function toggleCharacterController(state)
         controller.update = function() end
     else
         controller.update = nil
-        require(ReplicatedStorage.Controllers:WaitForChild("CharacterController")) 
+        require(ReplicatedStorage.Controllers:WaitForChild("CharacterController"))
     end
 end
 
-page:CreateDropdown("Speed Bypass Mode", {"None", "Bypass Speed", "Bypass Speed MAX"}, "None", function(value)
-    bypassMode = value
-    if value == "Bypass Speed" then
-        spoofItem("Speed Coil")
-    elseif value == "Bypass Speed MAX" then
-        spoofItem("Invisibility Cloak")
-    end
-    if charConn then charConn:Disconnect() end
-    charConn = player.CharacterAdded:Connect(onCharacterAdded)
-    if player.Character then onCharacterAdded() end
-end)
+-- Movement Tab
+local movementSection = movementTab:AddSection({Title = "Movement Controls", Description = "Configure your movement settings."})
 
-page:CreateToggle("CFrame Speed Bypass", false, function(state)
-    checking = state
-    if checking then
+movementSection:AddDropdown("SpeedBypassMode", {
+    Title = "Speed Bypass Mode",
+    Description = "",
+    Options = {"None", "Bypass Speed", "Bypass Speed MAX"},
+    Default = "None",
+    Callback = function(value)
+        bypassMode = value
+        if value == "Bypass Speed" then
+            spoofItem("Speed Coil")
+        elseif value == "Bypass Speed MAX" then
+            spoofItem("Invisibility Cloak")
+        end
         if charConn then charConn:Disconnect() end
         charConn = player.CharacterAdded:Connect(onCharacterAdded)
         if player.Character then onCharacterAdded() end
-    else
-        if charConn then charConn:Disconnect(); charConn = nil end
     end
-end)
+})
 
-page:CreateSlider("Walk Speed", 25, 75, walkSpeed, function(v)
-    walkSpeed = v
-end)
+movementSection:AddToggle("CFrameSpeedBypass", {
+    Title = "CFrame Speed Bypass",
+    Default = false,
+    Description = "Enables CFrame-based speed bypass.",
+    Callback = function(state)
+        checking = state
+        if checking then
+            if charConn then charConn:Disconnect() end
+            charConn = player.CharacterAdded:Connect(onCharacterAdded)
+            if player.Character then onCharacterAdded() end
+        else
+            if charConn then charConn:Disconnect(); charConn = nil end
+        end
+    end
+})
 
-page:CreateToggle("Infinite Jump", false, function(state)
-    infiniteJumpEnabled = state
-    toggleCharacterController(state)
-end)
+movementSection:AddSlider("WalkSpeedSlider", {
+    Title = "Walk Speed",
+    Description = "Adjust your character's walk speed.",
+    Default = walkSpeed,
+    Min = 25,
+    Max = 75,
+    Increment = 1,
+    Callback = function(v)
+        walkSpeed = v
+    end
+})
 
+movementSection:AddToggle("InfiniteJump", {
+    Title = "Infinite Jump",
+    Default = false,
+    Description = "Allows continuous jumping.",
+    Callback = function(state)
+        infiniteJumpEnabled = state
+        toggleCharacterController(state)
+    end
+})
+
+-- Visuals Tab
 local espEnabled = false
 local isPetScanRunning = false
 local highestGenAnimal = nil
@@ -292,54 +329,48 @@ end
 local function formatNumber(n)
     return tostring(n):reverse():gsub('%d%d%d', '%1,'):reverse():gsub('^,', '')
 end
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local HttpService = game:GetService("HttpService")
-
-local AnimalsModule  = require(ReplicatedStorage.Datas.Animals)
-local TraitsModule   = require(ReplicatedStorage.Datas.Traits)
-local MutationsModule = require(ReplicatedStorage.Datas.Mutations)
 
 local function getTraitMultiplier(model)
-	local traitSource = model:FindFirstChild("Instance") or model
-	local traitJson = traitSource:GetAttribute("Traits")
-	if not traitJson then return 1 end
+    local traitSource = model:FindFirstChild("Instance") or model
+    local traitJson = traitSource:GetAttribute("Traits")
+    if not traitJson then return 1 end
 
-	local success, traitList = pcall(function()
-		return HttpService:JSONDecode(traitJson)
-	end)
-	if not success or typeof(traitList) ~= "table" then return 1 end
+    local success, traitList = pcall(function()
+        return HttpService:JSONDecode(traitJson)
+    end)
+    if not success or typeof(traitList) ~= "table" then return 1 end
 
-	local mult = 1
-	for _, traitName in ipairs(traitList) do
-		local trait = TraitsModule[traitName]
-		if trait and trait.MultiplierModifier then
-			mult *= trait.MultiplierModifier
-		end
-	end
-	return mult
+    local mult = 1
+    for _, traitName in ipairs(traitList) do
+        local trait = TraitsModule[traitName]
+        if trait and trait.MultiplierModifier then
+            mult *= trait.MultiplierModifier
+        end
+    end
+    return mult
 end
 
 local function getMutationMultiplier(model)
-	local mutation = model:GetAttribute("Mutation")
-	if not mutation then return 1 end
+    local mutation = model:GetAttribute("Mutation")
+    if not mutation then return 1 end
 
-	local data = MutationsModule[mutation]
-	if data and data.MultiplierModifier then
-		return data.MultiplierModifier
-	end
-	return 1
+    local data = MutationsModule[mutation]
+    if data and data.MultiplierModifier then
+        return data.MultiplierModifier
+    end
+    return 1
 end
 
 local function getFinalGeneration(model)
-	local animalData = AnimalsModule[model.Name]
-	if not animalData then return 0 end
+    local animalData = AnimalsModule[model.Name]
+    if not animalData then return 0 end
 
-	local baseGen = animalData.Generation or 0
-	local traitMult = getTraitMultiplier(model)
-	local mutationMult = getMutationMultiplier(model)
-	local total = baseGen * traitMult * mutationMult
+    local baseGen = animalData.Generation or 0
+    local traitMult = getTraitMultiplier(model)
+    local mutationMult = getMutationMultiplier(model)
+    local total = baseGen * traitMult * mutationMult
 
-	return math.round(total), baseGen, traitMult, mutationMult
+    return math.round(total), baseGen, traitMult, mutationMult
 end
 
 
@@ -441,6 +472,8 @@ local function setupPlotMonitoring(plotModel)
                     for t = 200, 10, -10 do
                         if num <= t and not notifiedThresholds[t] then
                             notifiedThresholds[t] = true
+                            -- 3itx-UI-LIB does not have a direct "info" or "warning" notify type, so we use a generic one.
+                            lib:Notification("Plot Timer", "Plot timer is at " .. tostring(num) .. " seconds!", 3)
                             break
                         end
                     end
@@ -486,8 +519,8 @@ local function runPetScanLoop()
             if isBasePet(m) and isInEnemyPlot(m) then
                 local g = getFinalGeneration(m)
                 if g > bestGen then
-	                bestGen = g
-	                highest = m
+                    bestGen = g
+                    highest = m
                 end
             end
         end
@@ -516,28 +549,33 @@ local function runPetScanLoop()
     highestGenAnimal = nil
     isPetScanRunning = false
 end
-    
-page:CreateToggle("Tween Behind Highest Gen", false, function(state)
-    pathfindingEnabled = state
-    if state then
-        task.spawn(function() findAndEquipItem("Invisibility Cloak", true) end)
-        if not isPetScanRunning then task.spawn(runPetScanLoop) end
-        pathfindingCoroutine = task.spawn(pathfindLoop)
-    else
-        if pathfindingCoroutine then task.cancel(pathfindingCoroutine); pathfindingCoroutine = nil end
-        local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
-        if humanoid then humanoid:MoveTo(humanoid.RootPart.Position) end
-        unequipItem("Invisibility Cloak")
+
+movementSection:AddToggle("TweenBehindHighestGen", {
+    Title = "Tween Behind Highest Gen",
+    Default = false,
+    Description = "Automatically moves your character behind the highest generation pet.",
+    Callback = function(state)
+        pathfindingEnabled = state
+        if state then
+            task.spawn(function() findAndEquipItem("Invisibility Cloak", true) end)
+            if not isPetScanRunning then task.spawn(runPetScanLoop) end
+            pathfindingCoroutine = task.spawn(pathfindLoop)
+        else
+            if pathfindingCoroutine then task.cancel(pathfindingCoroutine); pathfindingCoroutine = nil end
+            local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+            if humanoid then humanoid:MoveTo(humanoid.RootPart.Position) end
+            unequipItem("Invisibility Cloak")
+        end
     end
-end)
+})
 
 RunService.RenderStepped:Connect(function(dt)
     if pathfindingEnabled then return end
     if not checking then return end
     
     local char = player.Character
-    local hrp  = char and char:FindFirstChild("HumanoidRootPart")
-    local hum  = char and char:FindFirstChildOfClass("Humanoid")
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
     if not (char and hrp and hum and hum.Health > 0) then return end
 
     local vec = Vector3.zero
@@ -547,11 +585,12 @@ RunService.RenderStepped:Connect(function(dt)
     if keys[Enum.KeyCode.D] then vec += Vector3.new( 1, 0, 0) end
     if vec.Magnitude == 0 then return end
 
-    local dir  = workspace.CurrentCamera.CFrame:VectorToWorldSpace(vec).Unit
-    local pos  = hrp.Position + dir * walkSpeed * dt
+    local dir = workspace.CurrentCamera.CFrame:VectorToWorldSpace(vec).Unit
+    local pos = hrp.Position + dir * walkSpeed * dt
     hrp.CFrame = CFrame.lookAt(pos, pos + Vector3.new(dir.X, 0, dir.Z).Unit)
 end)
 
+-- Shop Tab
 local shopItems = { 'Slap', 'Speed Coil', 'Trap', 'Iron Slap', 'Gravity Coil', 'Bee Launcher', 'Gold Slap', 'Coil Combo', 'Rage Table', 'Diamond Slap', 'Grapple Hook', 'Taser Gun', 'Emerald Slap', 'Invisibility Cloak', 'Boogie Bomb', 'Ruby Slap', "Medusa's Head", 'Dark Matter Slap', 'Web Slinger', 'Flame Slap', 'Quantum Cloner', 'All Seeing Sentry', 'Nuclear Slap', 'Rainbowrath Sword', 'Galaxy Slap', 'Laser Cape', 'Glitched Slap', 'Body Swap Potion', 'Splatter Slap', 'Paintball Gun' }
 local priorityOrder = { 'Invisibility Cloak', 'Quantum Cloner', "Medusa's Head" }
 table.sort(shopItems, function(a, b)
@@ -564,30 +603,46 @@ table.sort(shopItems, function(a, b)
 end)
 
 local buyingAll = false
-local buyAllToggle = shopPage:CreateToggle("Buy All Items", false, function(value)
-    buyingAll = value
-    if buyingAll then
-        task.spawn(function()
-            for _, itemName in ipairs(shopItems) do
-                if not buyingAll then break end
-                local success, result = pcall(function() return buyRemote:InvokeServer(itemName) end)
-                if success then window:Notify("Bought " .. itemName, "success")
-                else window:Notify("Failed: " .. itemName, "danger") end
-                task.wait(0.5)
-            end
-            buyAllToggle:Set(false)
-            buyingAll = false
-        end)
-    end
-end)
+local shopSection = shopTab:AddSection({Title = "Item Shop", Description = "Purchase items from the in-game shop."})
 
+local buyAllToggle = shopSection:AddToggle("BuyAllItems", {
+    Title = "Buy All Items",
+    Default = false,
+    Description = "Automatically buys all available items.",
+    Callback = function(value)
+        buyingAll = value
+        if buyingAll then
+            task.spawn(function()
+                for _, itemName in ipairs(shopItems) do
+                    if not buyingAll then break end
+                    local success, result = pcall(function() return buyRemote:InvokeServer(itemName) end)
+                    if success then lib:Notification("Success", "Bought " .. itemName, 3) -- Changed to 3itx-UI-LIB Notification
+                    else lib:Notification("Error", "Failed to buy: " .. itemName, 3) end -- Changed to 3itx-UI-LIB Notification
+                    task.wait(0.5)
+                end
+                -- Note: You'll need to manually set the toggle back to false in the UI if you want it to reflect the stop.
+                -- There isn't a direct `Set` method for toggles in 3itx-UI-LIB in the same way as SimpleLibrary.
+                -- If you need this, you'd need to modify the 3itx-UI-LIB itself or find a workaround.
+                buyingAll = false
+            end)
+        end
+    end
+})
+
+local shopButtonsGroup = shopSection:AddGroupButton()
 for _, itemName in ipairs(shopItems) do
-    shopPage:CreateButton("Buy " .. itemName, function()
-        local success, result = pcall(function() return buyRemote:InvokeServer(itemName) end)
-        if success then window:Notify("Bought " .. itemName, "success")
-        else window:Notify("Failed: " .. itemName, "danger") end
-    end)
+    shopButtonsGroup:AddButton({
+        Title = "Buy " .. itemName,
+        Callback = function()
+            local success, result = pcall(function() return buyRemote:InvokeServer(itemName) end)
+            if success then lib:Notification("Success", "Bought " .. itemName, 3)
+            else lib:Notification("Error", "Failed to buy: " .. itemName, 3) end
+        end,
+    })
 end
+
+-- Visuals Tab
+local visualsSection = visualsTab:AddSection({Title = "ESP & Visuals", Description = "Enhance your visual perception of the game."})
 
 local plotTimers_Enabled = false
 local plotTimers_Coroutine = nil
@@ -732,23 +787,48 @@ local function togglePlayerESP(state)
         table.clear(espConns)
     end
 end
-visualsPage:CreateToggle("Player ESP", true, togglePlayerESP)
-togglePlayerESP(true)
 
-visualsPage:CreateToggle("Highest Gen Brainrot ESP", true, function(state)
-    espEnabled = state
-    if state and not isPetScanRunning then
-        task.spawn(runPetScanLoop)
-    end
-end)
+visualsSection:AddToggle("PlayerESP", {
+    Title = "Player ESP",
+    Default = true,
+    Description = "Highlights other players.",
+    Callback = togglePlayerESP
+})
+togglePlayerESP(true) -- Initialize Player ESP
 
-visualsPage:CreateToggle("View Plot Timers", false, function(state)
-    if state then
-        enablePlotTimers()
-    else
-        disablePlotTimers()
+visualsSection:AddToggle("HighestGenBrainrotESP", {
+    Title = "Highest Gen Brainrot ESP",
+    Default = true,
+    Description = "Highlights the highest generation 'brainrot' animal.",
+    Callback = function(state)
+        espEnabled = state
+        if state and not isPetScanRunning then
+            task.spawn(runPetScanLoop)
+        end
     end
-end)
+})
+
+visualsSection:AddToggle("ViewPlotTimers", {
+    Title = "View Plot Timers",
+    Default = false,
+    Description = "Displays timers on plots.",
+    Callback = function(state)
+        if state then
+            enablePlotTimers()
+        else
+            disablePlotTimers()
+        end
+    end
+})
 
 espEnabled = true
 task.spawn(runPetScanLoop)
+
+-- Configuration Tab (for FlagsManager)
+local Config = main:AddTab("Config")
+FlagsManager:SetLibrary(lib)
+FlagsManager:SetIgnoreIndexes({})
+FlagsManager:SetFolder("Config/GameName")
+FlagsManager:InitSaveSystem(Config)
+
+lib:Notification('Hello', 'Hello, Thanks for using 3itx-UI-Lib',3)
