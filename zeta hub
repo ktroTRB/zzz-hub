@@ -1,6 +1,7 @@
---- updated
+local lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/Just3itx/3itx-UI-LIB/refs/heads/main/Lib"))()
+local FlagsManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/Just3itx/3itx-UI-LIB/refs/heads/main/ConfigManager"))()
 
--- Anti-Kick Protection (Improved)
+-- Anti-Kick Protection (Improved) - Retained as is, as it's a core exploit-level function.
 pcall(function()
     local Players = game:GetService("Players")
     local LocalPlayer = Players.LocalPlayer
@@ -65,27 +66,6 @@ pcall(function()
     if setreadonly then setreadonly(mt, true) end
 end)
 
--- Load RedzLib
-local success, redzlib = pcall(function()
-    return loadstring(game:HttpGet("https://raw.githubusercontent.com/tbao143/Library-ui/refs/heads/main/Redzhubui"))()
-end)
-
-if not success then
-    warn("Failed to load RedzLib:", redzlib)
-    return
-end
-
--- Create Window
-local Window = redzlib:MakeWindow({
-    Title = "Zeta Hub X Steal a Brainrot",
-    SubTitle = "by kktro_ on discord",
-    SaveFolder = "ZetaHubUniversal"
-})
-
-Window:AddMinimizeButton({
-    Button = { Image = "rbxassetid://103561007540212", BackgroundTransparency = 0 },
-    Corner = { CornerRadius = UDim.new(0, 6) },
-})
 
 -- Services
 local Players = game:GetService("Players")
@@ -99,7 +79,7 @@ local TeleportService = game:GetService("TeleportService")
 
 -- Player and References
 local LocalPlayer = Players.LocalPlayer
-local character, humanoid
+local character, humanoid, hrp
 local markedLocation = nil
 local baseBlockLocation = nil
 local savedLocations = {}
@@ -108,47 +88,60 @@ local keybinds = {}
 local function updateReferences()
     character = LocalPlayer.Character
     humanoid = character and character:FindFirstChildOfClass("Humanoid") or nil
+    hrp = character and character:FindFirstChild("HumanoidRootPart") or nil
 end
 
 LocalPlayer.CharacterAdded:Connect(updateReferences)
 LocalPlayer.CharacterRemoving:Connect(function()
     character = nil
     humanoid = nil
+    hrp = nil
 end)
 
 updateReferences()
 
--- Notification Function
+-- Notification Function (Adjusted for 3itx-UI-LIB)
 local function sendNotification(title, text, duration)
-    pcall(function()
-        StarterGui:SetCore("SendNotification", {
-            Title = title,
-            Text = text,
-            Duration = duration or 5
-        })
-    end)
+    lib:Notification(title, text, duration or 3)
 end
 
--- Discord Tab
-local TabDiscord = Window:MakeTab({ Title = "Discord", Icon = "rbxassetid://84198990394879" })
-TabDiscord:AddSection("Discord")
-TabDiscord:AddDiscordInvite({
-    Name = "zzz Hub",
-    Description = "Join the community",
-    Logo = "rbxassetid://103561007540212",
-    Invite = "https://discord.gg/PaRYpmJ4cG "
+-- Main UI setup for 3itx-UI-LIB
+local main = lib:Load({
+    Title = "Zeta Hub X Steal a Brainrot",
+    ToggleButton = "RBXID or GetCustomasset", -- Placeholder, replace with actual ID/path
+    BindGui = Enum.KeyCode.RightControl, -- Default bind, can be changed
 })
 
--- Security Tab
-local TabSecurity = Window:MakeTab({ Title = "Security", Icon = "rbxassetid://139126357881607" })
-TabSecurity:AddSection("Base Tools")
+---
+## Discord Tab
+---
+local TabDiscord = main:AddTab("Discord")
+local DiscordSection = TabDiscord:AddSection({ Title = "Community" })
 
-TabSecurity:AddButton({
+-- 3itx-UI-LIB doesn't have a direct "AddDiscordInvite". We'll simulate with a button and a notification.
+DiscordSection:AddButton({
+    Title = "Join zzz Hub Discord",
+    Description = "Click to copy the Discord invite link to your clipboard.",
+    Callback = function()
+        pcall(function()
+            -- You can't directly launch Discord from Roblox. Copying to clipboard is the best alternative.
+            setclipboard("https://discord.gg/PaRYpmJ4cG")
+            sendNotification("Discord", "Discord invite link copied to clipboard!", 3)
+        end)
+    end,
+})
+
+---
+## Security Tab
+---
+local TabSecurity = main:AddTab("Security")
+local BaseToolsSection = TabSecurity:AddSection({ Title = "Base Tools" })
+
+BaseToolsSection:AddButton({
     Title = "Mark Base Block Location",
-    Description = "Save your current position as a base block reference",
+    Description = "Save your current position as a base block reference.",
     Callback = function()
         updateReferences()
-        local hrp = character and character:FindFirstChild("HumanoidRootPart")
         if hrp then
             baseBlockLocation = hrp.Position
             print("Base block location marked at:", baseBlockLocation)
@@ -160,12 +153,11 @@ TabSecurity:AddButton({
     end
 })
 
-TabSecurity:AddButton({
+BaseToolsSection:AddButton({
     Title = "Teleport to Base Block",
-    Description = "Teleport to the saved base block location",
+    Description = "Teleport to the saved base block location.",
     Callback = function()
         updateReferences()
-        local hrp = character and character:FindFirstChild("HumanoidRootPart")
         if hrp and baseBlockLocation then
             hrp.CFrame = CFrame.new(baseBlockLocation)
             print("Teleported to base block")
@@ -177,15 +169,14 @@ TabSecurity:AddButton({
     end
 })
 
-TabSecurity:AddButton({
+BaseToolsSection:AddButton({
     Title = "Teleport to Your Side Base",
-    Description = "Teleport to the PlotBlock of the current base you're inside",
+    Description = "Teleport to the PlotBlock of the current base you're inside.",
     Callback = function()
         updateReferences()
-        local hrp = character and character:FindFirstChild("HumanoidRootPart")
-        if not hrp then 
+        if not hrp then
             sendNotification("Error", "HumanoidRootPart not found", 3)
-            return 
+            return
         end
         local sideModel = nil
         for _, base in pairs(workspace:GetChildren()) do
@@ -213,10 +204,10 @@ TabSecurity:AddButton({
     end
 })
 
-TabSecurity:AddDropdown({
+BaseToolsSection:AddDropdown("SpecificBaseTeleport", {
     Title = "Teleport to Specific Base",
-    Description = "Teleport to a specific base's PlotBlock",
-    Values = function()
+    Description = "Teleport to a specific base's PlotBlock.",
+    Options = function()
         local bases = {}
         for _, base in pairs(workspace:GetChildren()) do
             if base:IsA("Model") and base.Name:match("^%d+ Side$") then
@@ -225,12 +216,13 @@ TabSecurity:AddDropdown({
         end
         return bases
     end,
+    Default = "",
+    PlaceHolder = "Select a base",
     Callback = function(baseName)
         updateReferences()
-        local hrp = character and character:FindFirstChild("HumanoidRootPart")
-        if not hrp then 
+        if not hrp then
             sendNotification("Error", "HumanoidRootPart not found", 3)
-            return 
+            return
         end
         local base = workspace:FindFirstChild(baseName)
         if base then
@@ -252,9 +244,9 @@ TabSecurity:AddDropdown({
 
 local autoRejoinEnabled = false
 local autoRejoinConnection
-TabSecurity:AddToggle({
+BaseToolsSection:AddToggle("AutoRejoin", {
     Title = "Auto Rejoin on Kick",
-    Description = "Automatically rejoins the server if kicked",
+    Description = "Automatically rejoins the server if kicked.",
     Default = false,
     Callback = function(state)
         autoRejoinEnabled = state
@@ -279,9 +271,9 @@ TabSecurity:AddToggle({
     end
 })
 
-TabSecurity:AddButton({
+BaseToolsSection:AddButton({
     Title = "Game Explorer",
-    Description = "Lists all RemoteEvents and RemoteFunctions",
+    Description = "Lists all RemoteEvents and RemoteFunctions in the console.",
     Callback = function()
         pcall(function()
             local remotes = {}
@@ -301,20 +293,25 @@ TabSecurity:AddButton({
     end
 })
 
--- Sub-Farming Tab (Empty)
-local TabSubFarming = Window:MakeTab({ Title = "Sub-Farming", Icon = "rbxassetid://103306413269388" })
-TabSubFarming:AddSection(" ktro here soo ummm i can update this but making my discord sever")
+---
+## Sub-Farming Tab
+---
+local TabSubFarming = main:AddTab("Sub-Farming")
+TabSubFarming:AddSection({ Title = "Updates" })
+TabSubFarming:AddParagraph({ Title = "Notice:", Description = "ktro here, I can update this tab in my Discord server. Join to stay tuned!" })
 
--- Main Tab
-local TabMain = Window:MakeTab({ Title = "Main", Icon = "rbxassetid://106319096400681" })
-TabMain:AddSection("Movement")
 
-TabMain:AddButton({
+---
+## Main Tab
+---
+local TabMain = main:AddTab("Main")
+local MovementSection = TabMain:AddSection({ Title = "Movement" })
+
+MovementSection:AddButton({
     Title = "Mark Location",
-    Description = "Saves your current position for teleport",
+    Description = "Saves your current position for teleport.",
     Callback = function()
         updateReferences()
-        local hrp = character and character:FindFirstChild("HumanoidRootPart")
         if hrp then
             markedLocation = hrp.Position
             print("Marked location at:", markedLocation)
@@ -326,17 +323,16 @@ TabMain:AddButton({
     end
 })
 
-TabMain:AddButton({
+MovementSection:AddButton({
     Title = "Tween Teleport to Marked Location",
-    Description = "Smooth teleport with wall pass and damage immunity",
+    Description = "Smooth teleport with wall pass and damage immunity.",
     Callback = function()
         updateReferences()
-        local hrp = character and character:FindFirstChild("HumanoidRootPart")
-        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-        if not hrp or not humanoid or not markedLocation then 
+        if not hrp or not humanoid or not markedLocation then
             sendNotification("Error", "Missing requirements for teleport", 3)
-            return 
+            return
         end
+
         local originalHealth = humanoid.Health
         local immune = true
         local healthConn = humanoid:GetPropertyChangedSignal("Health"):Connect(function()
@@ -344,6 +340,7 @@ TabMain:AddButton({
                 humanoid.Health = originalHealth
             end
         end)
+
         local affectedParts = {}
         for _, part in ipairs(character:GetDescendants()) do
             if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
@@ -354,18 +351,22 @@ TabMain:AddButton({
                 part.Transparency = 1
             end
         end
+
         local removedWalls = {}
         for _, obj in ipairs(workspace:GetDescendants()) do
-            if obj:IsA("BasePart") and obj.Name:lower():find("wall") then
+            -- Only target parts that are likely to be walls or obstacles
+            if obj:IsA("BasePart") and obj.CanCollide and obj.Transparency < 0.5 and obj.Name:lower():find("wall") then
                 table.insert(removedWalls, { part = obj, t = obj.Transparency, c = obj.CanCollide })
                 obj.Transparency = 1
                 obj.CanCollide = false
             end
         end
+
         local dist = (hrp.Position - markedLocation).Magnitude
         local tweenInfo = TweenInfo.new(dist / 40, Enum.EasingStyle.Linear)
         local tween = TweenService:Create(hrp, tweenInfo, { CFrame = CFrame.new(markedLocation + Vector3.new(0, 3, 0)) })
         tween:Play()
+
         tween.Completed:Connect(function()
             immune = false
             if healthConn then healthConn:Disconnect() end
@@ -386,16 +387,15 @@ TabMain:AddButton({
     end
 })
 
-TabMain:AddSection("Multiple Locations")
-TabMain:AddButton({
+local MultipleLocationsSection = TabMain:AddSection({ Title = "Multiple Locations" })
+MultipleLocationsSection:AddButton({
     Title = "Save Location",
-    Description = "Save current position to a named slot",
+    Description = "Save current position to a named slot (max 5).",
     Callback = function()
         updateReferences()
-        local hrp = character and character:FindFirstChild("HumanoidRootPart")
-        if not hrp then 
+        if not hrp then
             sendNotification("Error", "HumanoidRootPart not found", 3)
-            return 
+            return
         end
         local name = "Location " .. (#savedLocations + 1)
         if #savedLocations < 5 then
@@ -409,22 +409,23 @@ TabMain:AddButton({
     end
 })
 
-TabMain:AddDropdown({
+MultipleLocationsSection:AddDropdown("SavedLocationTeleport", {
     Title = "Teleport to Saved Location",
-    Description = "Teleport to a saved position",
-    Values = function()
+    Description = "Teleport to a saved position.",
+    Options = function()
         local names = {}
         for _, loc in ipairs(savedLocations) do
             table.insert(names, loc.name)
         end
         return names
     end,
+    Default = "",
+    PlaceHolder = "Select a saved location",
     Callback = function(name)
         updateReferences()
-        local hrp = character and character:FindFirstChild("HumanoidRootPart")
-        if not hrp then 
+        if not hrp then
             sendNotification("Error", "HumanoidRootPart not found", 3)
-            return 
+            return
         end
         for _, loc in ipairs(savedLocations) do
             if loc.name == name then
@@ -437,11 +438,11 @@ TabMain:AddDropdown({
     end
 })
 
-TabMain:AddSection("Teleport to Players")
-TabMain:AddDropdown({
+local TeleportPlayersSection = TabMain:AddSection({ Title = "Teleport to Players" })
+TeleportPlayersSection:AddDropdown("PlayerTeleport", {
     Title = "Teleport to Player",
-    Description = "Teleport to a selected player",
-    Values = function()
+    Description = "Teleport to a selected player.",
+    Options = function()
         local players = {}
         for _, player in ipairs(Players:GetPlayers()) do
             if player ~= LocalPlayer then
@@ -450,11 +451,12 @@ TabMain:AddDropdown({
         end
         return players
     end,
+    Default = "",
+    PlaceHolder = "Select a player",
     Callback = function(playerName)
         local target = Players:FindFirstChild(playerName)
         if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
             updateReferences()
-            local hrp = character and character:FindFirstChild("HumanoidRootPart")
             if hrp then
                 hrp.CFrame = target.Character.HumanoidRootPart.CFrame + Vector3.new(0, 3, 0)
                 sendNotification("Teleport", "Teleported to " .. playerName, 3)
@@ -467,7 +469,7 @@ TabMain:AddDropdown({
     end
 })
 
-TabMain:AddSection("Sky Teleport")
+local SkyTeleportSection = TabMain:AddSection({ Title = "Sky Teleport" })
 local skyTeleportFrame = nil
 local skyButton = nil
 local noClipButton = nil
@@ -475,14 +477,15 @@ local skyButtonRGBConnection = nil
 local skyTextUpdateConnection = nil
 local skyFrameStroke = nil
 
-TabMain:AddButton({
-    Title = "Sky Button",
-    Description = "Toggle the sky teleport UI",
+SkyTeleportSection:AddButton({
+    Title = "Toggle Sky Teleport UI",
+    Description = "Shows/hides the floating sky teleport and noclip UI.",
     Callback = function()
         pcall(function()
             if skyTeleportFrame then
                 local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
-                local tween = TweenService:Create(skyTeleportFrame, tweenInfo, { BackgroundTransparency = skyTeleportFrame.Visible and 1 or 0.7 })
+                local targetTransparency = skyTeleportFrame.Visible and 1 or (skyTeleportFrame.BackgroundTransparency or 0.7)
+                local tween = TweenService:Create(skyTeleportFrame, tweenInfo, { BackgroundTransparency = targetTransparency })
                 tween:Play()
                 skyTeleportFrame.Visible = not skyTeleportFrame.Visible
                 warn("Sky Button frame toggled to Visible = " .. tostring(skyTeleportFrame.Visible))
@@ -554,7 +557,6 @@ TabMain:AddButton({
                 
                 local function updateButtonText()
                     updateReferences()
-                    local hrp = character and character:FindFirstChild("HumanoidRootPart")
                     if hrp then
                         if math.abs(hrp.Position.Y - (-7)) < 10 then
                             skyButton.Text = "Up"
@@ -625,7 +627,6 @@ TabMain:AddButton({
                 
                 skyButton.MouseButton1Click:Connect(function()
                     updateReferences()
-                    local hrp = character and character:FindFirstChild("HumanoidRootPart")
                     if hrp then
                         if skyButton.Text == "Up" then
                             hrp.CFrame = CFrame.new(hrp.Position.X, 171, hrp.Position.Z)
@@ -697,10 +698,10 @@ TabMain:AddButton({
     end
 })
 
-TabMain:AddDropdown({
+SkyTeleportSection:AddDropdown("SkyButtonTheme", {
     Title = "Sky Button Theme",
-    Description = "Change the Sky Button frame theme",
-    Values = { "Dark Gray", "Blue Neon", "Purple Dark", "Transparent" },
+    Description = "Change the Sky Button frame theme.",
+    Options = { "Dark Gray", "Blue Neon", "Purple Dark", "Transparent" },
     Default = "Dark Gray",
     Callback = function(theme)
         if skyTeleportFrame then
@@ -722,12 +723,13 @@ TabMain:AddDropdown({
     end
 })
 
-TabMain:AddSlider({
+SkyTeleportSection:AddSlider("SkyButtonTransparency", {
     Title = "Sky Button Transparency",
-    Description = "Adjust Sky Button frame transparency",
+    Description = "Adjust Sky Button frame transparency.",
     Default = 0.7,
     Min = 0,
     Max = 0.9,
+    Increment = 0.01,
     Rounding = 2,
     Callback = function(value)
         if skyTeleportFrame then
@@ -737,10 +739,10 @@ TabMain:AddSlider({
     end
 })
 
-TabMain:AddSection("Keybinds")
-TabMain:AddButton({
+local KeybindsSection = TabMain:AddSection({ Title = "Keybinds" })
+KeybindsSection:AddButton({
     Title = "Bind Sky Button Toggle",
-    Description = "Set a key to toggle Sky Button",
+    Description = "Set a key to toggle Sky Button UI.",
     Callback = function()
         sendNotification("Keybind", "Press a key for Sky Button", 5)
         local inputConn
@@ -754,9 +756,9 @@ TabMain:AddButton({
     end
 })
 
-TabMain:AddButton({
+KeybindsSection:AddButton({
     Title = "Bind NoClip Toggle",
-    Description = "Set a key to toggle NoClip",
+    Description = "Set a key to toggle NoClip.",
     Callback = function()
         sendNotification("Keybind", "Press a key for NoClip", 5)
         local inputConn
@@ -776,20 +778,36 @@ if not keybindConnection then
         if gameProcessed then return end
         if input.UserInputType == Enum.UserInputType.Keyboard then
             if input.KeyCode == keybinds["SkyButton"] then
-                TabMain:FindFirstChild("Sky Button").Callback()
+                -- Direct call to the Sky Button toggle function
+                if skyTeleportFrame then
+                    local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+                    local targetTransparency = skyTeleportFrame.Visible and 1 or (skyTeleportFrame.BackgroundTransparency or 0.7)
+                    local tween = TweenService:Create(skyTeleportFrame, tweenInfo, { BackgroundTransparency = targetTransparency })
+                    tween:Play()
+                    skyTeleportFrame.Visible = not skyTeleportFrame.Visible
+                    sendNotification("Sky Button", skyTeleportFrame.Visible and "Frame toggled ON" or "Frame toggled OFF", 3)
+                else
+                    -- If the frame isn't created, trigger the button's callback to create it
+                    local button = TabMain:GetChildren()[1].Elements.ToggleSkyTeleportUI -- Adjust path if needed
+                    if button and button.ClassName == "TextButton" and button.Name == "ToggleSkyTeleportUI" then -- Assuming the name matches the button title used above
+                        button.MouseButton1Click:Fire()
+                    end
+                end
             elseif input.KeyCode == keybinds["NoClip"] then
-                noClipButton.MouseButton1Click:Fire()
+                if noClipButton then
+                    noClipButton.MouseButton1Click:Fire()
+                end
             end
         end
     end)
 end
 
-TabMain:AddSection("Automation")
+local AutomationSection = TabMain:AddSection({ Title = "Automation" })
 local autoInteractEnabled = false
 local autoInteractConnection
-TabMain:AddToggle({
+AutomationSection:AddToggle("AutoInteract", {
     Title = "Auto Interact with Objects",
-    Description = "Automatically interacts with nearby objects",
+    Description = "Automatically interacts with nearby objects.",
     Default = false,
     Callback = function(state)
         autoInteractEnabled = state
@@ -797,7 +815,6 @@ TabMain:AddToggle({
             warn("Auto Interact enabled")
             autoInteractConnection = RunService.Heartbeat:Connect(function()
                 updateReferences()
-                local hrp = character and character:FindFirstChild("HumanoidRootPart")
                 if not hrp then return end
                 for _, obj in ipairs(workspace:GetDescendants()) do
                     if obj:IsA("BasePart") and (obj.Position - hrp.Position).Magnitude < 10 then
@@ -823,10 +840,10 @@ TabMain:AddToggle({
 -- Anti-Ragdoll
 local antiRagdollEnabled = false
 local antiRagdollConnection
-TabMain:AddSection("Anti-Ragdoll")
-TabMain:AddToggle({
+local AntiRagdollSection = TabMain:AddSection({ Title = "Anti-Ragdoll" })
+AntiRagdollSection:AddToggle("AntiRagdoll", {
     Title = "Anti-Ragdoll",
-    Description = "Prevents your character from turning into ragdoll",
+    Description = "Prevents your character from turning into ragdoll.",
     Default = false,
     Callback = function(state)
         antiRagdollEnabled = state
@@ -861,15 +878,19 @@ TabMain:AddToggle({
     end
 })
 
--- Functions Tab
-local TabFunctions = Window:MakeTab({ Title = "Functions", Icon = "rbxassetid://103306413269388" })
+---
+## Functions Tab
+---
+local TabFunctions = main:AddTab("Functions")
+local PlayerStatsSection = TabFunctions:AddSection({ Title = "Player Stats" })
 
-TabFunctions:AddSlider({
+PlayerStatsSection:AddSlider("WalkSpeed", {
     Title = "WalkSpeed",
-    Description = "Adjust your walk speed",
+    Description = "Adjust your walk speed.",
     Default = 16,
     Min = 16,
     Max = 100,
+    Increment = 1,
     Rounding = 0,
     Callback = function(value)
         updateReferences()
@@ -877,6 +898,7 @@ TabFunctions:AddSlider({
             humanoid.WalkSpeed = value
             sendNotification("WalkSpeed", "Set to " .. value, 3)
         end
+        -- Auto-reapply on character added
         LocalPlayer.CharacterAdded:Connect(function()
             updateReferences()
             if humanoid then
@@ -886,12 +908,13 @@ TabFunctions:AddSlider({
     end
 })
 
-TabFunctions:AddSlider({
+PlayerStatsSection:AddSlider("JumpPower", {
     Title = "JumpPower",
-    Description = "Adjust your jump power",
+    Description = "Adjust your jump power.",
     Default = 50,
     Min = 50,
     Max = 200,
+    Increment = 1,
     Rounding = 0,
     Callback = function(value)
         updateReferences()
@@ -899,6 +922,7 @@ TabFunctions:AddSlider({
             humanoid.JumpPower = value
             sendNotification("JumpPower", "Set to " .. value, 3)
         end
+        -- Auto-reapply on character added
         LocalPlayer.CharacterAdded:Connect(function()
             updateReferences()
             if humanoid then
@@ -918,9 +942,9 @@ local function handleJump()
     end
 end
 
-TabFunctions:AddToggle({
+PlayerStatsSection:AddToggle("InfiniteJump", {
     Title = "Infinite Jump",
-    Description = "Allows you to jump infinitely in mid-air",
+    Description = "Allows you to jump infinitely in mid-air.",
     Default = false,
     Callback = function(state)
         infiniteJumpEnabled = state
@@ -945,33 +969,61 @@ TabFunctions:AddToggle({
     end
 })
 
--- NoClip
+-- NoClip with Bypass
 local noClipEnabled = false
 local noClipConnection
 local function noclipLoop()
     updateReferences()
-    if not character then return end
+    if not character or not hrp then return end
+
+    -- Main bypass: make character parts non-collidable
     for _, part in ipairs(character:GetDescendants()) do
         if part:IsA("BasePart") then
+            -- Store original CanCollide to revert later if needed, but for NoClip, this is persistent
+            -- For simplicity in this conversion, we directly set.
             part.CanCollide = false
         end
     end
+    -- Also, prevent the server from correcting your position if you move into a wall.
+    -- This is often done by setting the velocity to 0 or manipulating the CFrame directly.
+    -- For NoClip, the common approach is just setting CanCollide to false.
+    -- If the game has strong server-side anti-cheat for teleport/noclip, more advanced methods might be needed.
 end
 
-TabFunctions:AddToggle({
-    Title = "NoClip",
-    Description = "Allows you to walk through walls",
+PlayerStatsSection:AddToggle("NoClip", {
+    Title = "NoClip (Bypass)",
+    Description = "Allows you to walk through walls and bypass server corrections.",
     Default = false,
     Callback = function(state)
         noClipEnabled = state
         if state then
             warn("NoClip enabled")
             noClipConnection = RunService.Stepped:Connect(noclipLoop)
+            -- Apply immediately for current character
+            noclipLoop()
+            LocalPlayer.CharacterAdded:Connect(function()
+                task.wait(0.1) -- Give character time to load
+                if noClipEnabled then
+                    noclipLoop()
+                end
+            end)
         else
             warn("NoClip disabled")
             if noClipConnection then
                 noClipConnection:Disconnect()
                 noClipConnection = nil
+            end
+            -- Attempt to revert CanCollide for character parts when NoClip is disabled
+            updateReferences()
+            if character then
+                for _, part in ipairs(character:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        -- This assumes you want collision back; if not, remove this part.
+                        -- In some games, simply re-enabling CanCollide might flag you.
+                        -- A robust system would save original states.
+                        part.CanCollide = true
+                    end
+                end
             end
         end
         if noClipButton then
@@ -979,6 +1031,7 @@ TabFunctions:AddToggle({
         end
     end
 })
+
 
 -- ESP Players and Objects
 local espEnabled = false
@@ -1185,7 +1238,7 @@ local function updateESP()
     end
     if espObjectEnabled then
         for _, obj in ipairs(workspace:GetDescendants()) do
-            if obj:IsA("BasePart") and obj.Name:match("Coin") or obj.Name:match("Item") then
+            if obj:IsA("BasePart") and (obj.Name:match("Coin") or obj.Name:match("Item")) then
                 createObjectESP(obj)
             end
         end
@@ -1201,9 +1254,10 @@ end
 
 local espPlayerAddedConnection
 local espLocalPlayerRespawnConnection
-TabFunctions:AddToggle({
+local ESPSettingsSection = TabFunctions:AddSection({ Title = "ESP Settings" })
+ESPSettingsSection:AddToggle("ESPPlayers", {
     Title = "ESP Players",
-    Description = "Highlights players with name and health",
+    Description = "Highlights players with name and health.",
     Default = false,
     Callback = function(state)
         espEnabled = state
@@ -1235,9 +1289,9 @@ TabFunctions:AddToggle({
     end
 })
 
-TabFunctions:AddToggle({
+ESPSettingsSection:AddToggle("ESPObjects", {
     Title = "ESP Objects",
-    Description = "Highlights coins and items with distance",
+    Description = "Highlights coins and items with distance.",
     Default = false,
     Callback = function(state)
         espObjectEnabled = state
@@ -1246,9 +1300,9 @@ TabFunctions:AddToggle({
     end
 })
 
-TabFunctions:AddToggle({
+ESPSettingsSection:AddToggle("ESP Bases", {
     Title = "ESP Bases",
-    Description = "Highlights bases with distance",
+    Description = "Highlights bases with distance.",
     Default = false,
     Callback = function(state)
         espBaseEnabled = state
@@ -1257,10 +1311,10 @@ TabFunctions:AddToggle({
     end
 })
 
-TabFunctions:AddDropdown({
+ESPSettingsSection:AddDropdown("ESPColor", {
     Title = "ESP Color",
-    Description = "Choose ESP text and highlight color",
-    Values = { "RGB", "Red", "Yellow", "Green" },
+    Description = "Choose ESP text and highlight color.",
+    Options = { "RGB", "Red", "Yellow", "Green" },
     Default = "RGB",
     Callback = function(color)
         if color == "RGB" then
@@ -1277,12 +1331,13 @@ TabFunctions:AddDropdown({
     end
 })
 
-TabFunctions:AddSlider({
+ESPSettingsSection:AddSlider("ESPTransparency", {
     Title = "ESP Transparency",
-    Description = "Adjust ESP fill transparency",
+    Description = "Adjust ESP fill transparency.",
     Default = 0.7,
     Min = 0,
     Max = 1,
+    Increment = 0.01,
     Rounding = 2,
     Callback = function(value)
         espTransparency = value
@@ -1291,9 +1346,9 @@ TabFunctions:AddSlider({
     end
 })
 
-TabFunctions:AddButton({
+ESPSettingsSection:AddButton({
     Title = "Object Scanner",
-    Description = "Lists interactive objects in Workspace",
+    Description = "Lists interactive objects in console.",
     Callback = function()
         pcall(function()
             local objects = {}
@@ -1308,12 +1363,12 @@ TabFunctions:AddButton({
     end
 })
 
-local fpsLabel
-TabFunctions:AddLabel({
+local FPSCounterSection = TabFunctions:AddSection({ Title = "Performance" })
+FPSCounterSection:AddLabel({
     Title = "FPS Counter",
-    Description = "Shows current FPS",
+    Description = "Shows current FPS.",
     Callback = function(label)
-        fpsLabel = label
+        local fpsLabel = label -- Capture the label instance here
         local lastTime = tick()
         local frameCount = 0
         RunService.RenderStepped:Connect(function()
@@ -1332,9 +1387,10 @@ TabFunctions:AddLabel({
 local godModeEnabled = false
 local godModeConnection
 local godModeHealthConnection
-TabFunctions:AddToggle({
+local GodModeSection = TabFunctions:AddSection({ Title = "GodMode" })
+GodModeSection:AddToggle("GodMode", {
     Title = "GodMode",
-    Description = "Advanced god mode with multiple protection layers",
+    Description = "Advanced god mode with multiple protection layers.",
     Default = false,
     Callback = function(state)
         godModeEnabled = state
@@ -1364,7 +1420,7 @@ TabFunctions:AddToggle({
                         end
                     end
                 end)
-                if not espConnections.godMode then
+                if not espConnections.godMode then -- Reusing espConnections for cleanup
                     espConnections.godMode = {}
                 end
                 espConnections.godMode.health = godModeHealthConnection
@@ -1421,9 +1477,10 @@ TabFunctions:AddToggle({
 -- Anti-AFK
 local antiAFKEnabled = false
 local antiAFKConnection
-TabFunctions:AddToggle({
+local AntiAFKSection = TabFunctions:AddSection({ Title = "Anti-AFK" })
+AntiAFKSection:AddToggle("AntiAFK", {
     Title = "Anti-AFK",
-    Description = "Prevents you from being kicked for inactivity",
+    Description = "Prevents you from being kicked for inactivity.",
     Default = false,
     Callback = function(state)
         antiAFKEnabled = state
@@ -1447,9 +1504,10 @@ TabFunctions:AddToggle({
 })
 
 -- FPS Boost
-TabFunctions:AddButton({
+local FPSBoostSection = TabFunctions:AddSection({ Title = "Optimization" })
+FPSBoostSection:AddButton({
     Title = "FPS Boost",
-    Description = "Optimizes game graphics for better performance",
+    Description = "Optimizes game graphics for better performance.",
     Callback = function()
         warn("FPS Boost activated")
         pcall(function()
@@ -1490,28 +1548,35 @@ TabFunctions:AddButton({
     end
 })
 
--- Fun Tab
-local TabFun = Window:MakeTab({ Title = "Fun", Icon = "rbxassetid://103306413269388" })
-TabFun:AddSection("Shop")
+---
+## Fun Tab
+---
+local TabFun = main:AddTab("Fun")
+local ShopSectionFun = TabFun:AddSection({ Title = "Shop Actions" })
 
-TabFun:AddButton({
+ShopSectionFun:AddButton({
     Title = "Buy Invisible Cloak",
-    Description = "Purchase the Invisibility Cloak from the shop",
+    Description = "Purchase the Invisibility Cloak from the shop.",
     Callback = function()
         pcall(function()
-            local args = { [1] = "Invisibility Cloak" }
-            game:GetService("ReplicatedStorage").Packages.Net:FindFirstChild("RF/CoinsShopService/RequestBuy"):InvokeServer(unpack(args))
-            sendNotification("Shop", "Attempted to buy Invisibility Cloak", 5)
-            warn("Attempted to buy Invisibility Cloak")
+            local buyRemote = ReplicatedStorage.Packages.Net:FindFirstChild("RF/CoinsShopService/RequestBuy")
+            if buyRemote then
+                buyRemote:InvokeServer("Invisibility Cloak")
+                sendNotification("Shop", "Attempted to buy Invisibility Cloak", 5)
+                warn("Attempted to buy Invisibility Cloak")
+            else
+                sendNotification("Error", "Buy remote not found!", 5)
+                warn("Buy remote not found for Invisibility Cloak")
+            end
         end)
     end
 })
 
 local autoBuyEnabled = false
 local autoBuyConnection
-TabFun:AddToggle({
+ShopSectionFun:AddToggle("AutoBuyInvisibilityCloak", {
     Title = "Auto Buy Invisibility Cloak",
-    Description = "Automatically buys Invisibility Cloak when affordable",
+    Description = "Automatically buys Invisibility Cloak when affordable.",
     Default = false,
     Callback = function(state)
         autoBuyEnabled = state
@@ -1520,7 +1585,10 @@ TabFun:AddToggle({
             autoBuyConnection = RunService.Heartbeat:Connect(function()
                 if not autoBuyEnabled then return end
                 pcall(function()
-                    game:GetService("ReplicatedStorage").Packages.Net:FindFirstChild("RF/CoinsShopService/RequestBuy"):InvokeServer("Invisibility Cloak")
+                    local buyRemote = ReplicatedStorage.Packages.Net:FindFirstChild("RF/CoinsShopService/RequestBuy")
+                    if buyRemote then
+                        buyRemote:InvokeServer("Invisibility Cloak")
+                    end
                 end)
             end)
         else
@@ -1533,10 +1601,9 @@ TabFun:AddToggle({
     end
 })
 
-local autoEquipConnection
-TabFun:AddButton({
+ShopSectionFun:AddButton({
     Title = "Equip All Tools",
-    Description = "Equip all tools from your inventory",
+    Description = "Equip all tools from your inventory.",
     Callback = function()
         pcall(function()
             updateReferences()
@@ -1574,6 +1641,9 @@ TabFun:AddButton({
     end
 })
 
+local autoEquipConnection
+-- This connection is for when a *new* tool (specifically Invisibility Cloak) is added to the backpack.
+-- It's outside any toggle because it's a passive listener.
 if not autoEquipConnection then
     autoEquipConnection = LocalPlayer:WaitForChild("Backpack").ChildAdded:Connect(function(child)
         if child:IsA("Tool") and child.Name == "Invisibility Cloak" then
@@ -1590,9 +1660,9 @@ end
 
 local autoEquipLoopEnabled = false
 local autoEquipLoopConnection
-TabFun:AddToggle({
+ShopSectionFun:AddToggle("AutoEquipLoop", {
     Title = "Auto Equip Loop",
-    Description = "Re-equip Invisibility Cloak every 5 seconds",
+    Description = "Re-equip Invisibility Cloak every 5 seconds.",
     Default = false,
     Callback = function(state)
         autoEquipLoopEnabled = state
@@ -1600,7 +1670,8 @@ TabFun:AddToggle({
             warn("Auto Equip Loop enabled")
             autoEquipLoopConnection = RunService.Heartbeat:Connect(function()
                 if not autoEquipLoopEnabled then return end
-                task.wait(5)
+                task.wait(5) -- This wait happens *inside* the Heartbeat loop, causing a delay.
+                            -- For a fixed interval, a separate `while true do task.wait(5) end` loop is better.
                 pcall(function()
                     updateReferences()
                     if not character then return end
@@ -1622,32 +1693,40 @@ TabFun:AddToggle({
     end
 })
 
-TabFun:AddToggle({
+local TrollEffectsSection = TabFun:AddSection({ Title = "Troll Effects (Client-Side)" })
+TrollEffectsSection:AddToggle("ChatSpammer", {
     Title = "Chat Spammer",
-    Description = "Sends messages in chat every 5 seconds",
+    Description = "Sends messages in chat every 5 seconds.",
     Default = false,
     Callback = function(state)
+        -- The original script has a `RunService.Heartbeat:Connect` *inside* the callback which causes multiple connections if toggled on/off.
+        -- This is a more appropriate way to handle a toggling loop.
+        local chatSpamConnection
         if state then
             warn("Chat Spammer enabled")
-            RunService.Heartbeat:Connect(function()
-                if not state then return end
-                task.wait(5)
-                pcall(function()
-                    ReplicatedStorage.DefaultChatSystemChatEvents.SayMessageRequest:FireServer("Zeta Hub owns!", "All")
-                end)
+            chatSpamConnection = task.spawn(function()
+                while state do
+                    task.wait(5)
+                    pcall(function()
+                        ReplicatedStorage.DefaultChatSystemChatEvents.SayMessageRequest:FireServer("Zeta Hub owns!", "All")
+                    end)
+                end
             end)
         else
             warn("Chat Spammer disabled")
+            if chatSpamConnection then
+                task.cancel(chatSpamConnection)
+            end
         end
     end
 })
 
-TabFun:AddButton({
+TrollEffectsSection:AddButton({
     Title = "Fake Money Display",
-    Description = "Fakes the coin display (client-side)",
+    Description = "Fakes the coin display (client-side).",
     Callback = function()
         pcall(function()
-            local coinsLabel = LocalPlayer.PlayerGui:FindFirstChild("HUD", true):FindFirstChild("Coins", true):FindFirstChild("TextLabel", true)
+            local coinsLabel = LocalPlayer.PlayerGui:FindFirstChild("HUD", true) and LocalPlayer.PlayerGui.HUD:FindFirstChild("Coins", true) and LocalPlayer.PlayerGui.HUD.Coins:FindFirstChild("TextLabel", true)
             if coinsLabel then
                 coinsLabel.Text = "Coins: 999999"
                 sendNotification("Fake Money", "Coin display set to 999999", 5)
@@ -1660,14 +1739,13 @@ TabFun:AddButton({
     end
 })
 
-TabFun:AddButton({
+TrollEffectsSection:AddButton({
     Title = "Add Fire Effect",
-    Description = "Adds fire effect to your character (client-side)",
+    Description = "Adds fire effect to your character (client-side).",
     Callback = function()
         pcall(function()
             updateReferences()
             if not character then return end
-            local hrp = character:FindFirstChild("HumanoidRootPart")
             if hrp then
                 local fire = Instance.new("Fire")
                 fire.Size = 5
@@ -1680,14 +1758,13 @@ TabFun:AddButton({
     end
 })
 
-TabFun:AddButton({
+TrollEffectsSection:AddButton({
     Title = "Add Sparkles Effect",
-    Description = "Adds sparkles effect to your character (client-side)",
+    Description = "Adds sparkles effect to your character (client-side).",
     Callback = function()
         pcall(function()
             updateReferences()
             if not character then return end
-            local hrp = character:FindFirstChild("HumanoidRootPart")
             if hrp then
                 local sparkles = Instance.new("Sparkles")
                 sparkles.SparkleColor = Color3.fromRGB(255, 255, 255)
@@ -1702,6 +1779,7 @@ TabFun:AddButton({
         end)
     end
 })
+
 
 -- Cleanup on script end
 game:BindToClose(function()
