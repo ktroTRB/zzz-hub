@@ -1,376 +1,383 @@
--- Load 3itx-UI-LIB
-local lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/Just3itx/3itx-UI-LIB/refs/heads/main/Lib"))()
-local FlagsManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/Just3itx/3itx-UI-LIB/refs/heads/main/ConfigManager"))()
+ local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
+local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
--- Define the main UI window structure from your provided template
-local main = lib:Load({
-    Title = '[👻] Ghost Hub',
-    ToggleButton = "rbxassetid://6034684930", -- Using the water drop icon from previous example as it's common
-    BindGui = Enum.KeyCode.RightControl, -- Fluent used LeftControl, 3itx-UI-LIB template uses RightControl
+local Window = Fluent:CreateWindow({
+    Title = "[👻] Ghost Hub",
+    SubTitle = "- leaked by ktro ",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(430, 350),
+    Acrylic = true, -- The blur may be detectable, setting this to false disables blur entirely
+    Theme = "Light",
+    MinimizeKey = Enum.KeyCode.LeftControl -- Used when theres no MinimizeKeybind
 })
 
--- Services
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
-local TeleportService = game:GetService("TeleportService")
-local HttpService = game:GetService("HttpService")
-local StarterGui = game:GetService("StarterGui")
-local VirtualUser = game:GetService("VirtualUser")
-local Workspace = game:GetService("Workspace")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Debris = game:GetService("Debris") -- Ensure Debris service is defined
-
--- Player and common references
-local player = Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
-
--- Global state management
-local states = {
-    speedBoost = false,
-    maxSpeedBoost = false,
-    infiniteJump = false,
-    antiRagdoll = false,
-    disableScreenEffects = false,
-    disableAnimations = false,
-    antiBeeLauncher = false,
-    antiAFK = false,
-    autoBuyEssentials = false,
-    noclip = false, -- Add noclip state for consistency
-    espPlayers = false,
-    espBox = false,
+--Fluent provides Lucide Icons https://lucide.dev/icons/ for the tabs, icons are optional
+local Tabs = {
+    Main = Window:AddTab({ Title = "Main", Icon = "gamepad-2" }),
+    Steal = Window:AddTab({ Title = "Steal", Icon = "landmark" }),
+    Player = Window:AddTab({ Title = "Player", Icon = "person-standing" }),
+    Esp = Window:AddTab({ Title = "Esp", Icon = "gamepad-2" }),
+    Buy = Window:AddTab({ Title = "Buy", Icon = "shopping-bag" }),
+    Server = Window:AddTab({ Title = "Server", Icon = "server" }),
+    Settings = Window:AddTab({ Title = "Settings", Icon = "settings" }),
+    Note = Window:AddTab({ Title = "NOTE!", Icon = "shield-alert" }),
 }
+local Options = Fluent.Options
 
-local connections = {} -- Centralized table for all connections for easy cleanup
-
--- Helper variables
-local originalWalkSpeed = 16 -- Default Roblox walkspeed
-local originalJumpPower = 50 -- Default Roblox jumppower
-
--- Utility Functions (Essential game-related helpers)
-local function getCharacter()
-    return player.Character
-end
-
-local function getHumanoid()
-    local char = getCharacter()
-    return char and char:FindFirstChildOfClass("Humanoid")
-end
-
-local function getRootPart()
-    local char = getCharacter()
-    return char and char:FindFirstChild("HumanoidRootPart")
-end
-
--- Notification Function (adapted for 3itx-UI-LIB)
-local function sendNotification(title, text, duration, image)
-    lib:Notification(title, text, duration or 3, image)
-end
-
--- Function to find a child by path (used by original Fluent script)
-local function FindChild(Parent, Path)
-    if type(Parent) ~= "table" and not Parent:IsA("Instance") then
-        return
-    end
-    local Current = Parent
-    for ChildName in string.gmatch(Path, "[^/]+") do
-        if not Current then return end
-        Current = Current:FindFirstChild(ChildName)
-    end
-    return Current
-end
-
--- Teleportation specific helper functions
-local function EquipTool(Tool)
-    if Tool and Tool:IsA("Tool") then
-        local Humanoid = getHumanoid()
-        if Humanoid then
-            Humanoid:EquipTool(Tool)
-        end
-    end
-end
-
-local function ActivateTool(Tool)
-    if Tool and Tool:IsA("Tool") then
-        Tool:Activate()
-    end
-end
-
----
--- Speed Bypass Logic (from previous conversions, integrated into new UI)
----
-
--- Robust Speed Setting with Re-application
-local function setRobustSpeed(humanoid, speed, initial)
-    if humanoid and humanoid:FindFirstChild("WalkSpeed") then
-        humanoid.WalkSpeed = speed
-        humanoid.JumpPower = speed * 0.5 -- Scale JumpPower with speed
-
-        -- Only hook if it's the initial set
-        if initial then
-            connections["WalkSpeedHook_" .. humanoid.Name] = humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
-                if humanoid.WalkSpeed ~= speed then
-                    humanoid.WalkSpeed = speed
-                end
-            end)
-            connections["JumpPowerHook_" .. humanoid.Name] = humanoid:GetPropertyChangedSignal("JumpPower"):Connect(function()
-                if humanoid.JumpPower ~= speed * 0.5 then
-                    humanoid.JumpPower = speed * 0.5
-                end
-            end)
-        end
-    end
-end
-
--- NoClip Bypass Logic (from previous conversions, integrated into new UI)
-local function toggleNoClip(enabled)
-    states.noclip = enabled
-
-    if connections.noclipLoop then
-        connections.noclipLoop:Disconnect()
-        connections.noclipLoop = nil
-    end
-
-    if enabled then
-        connections.noclipLoop = RunService.Stepped:Connect(function()
-            local character = getCharacter()
-            if character then
-                for _, part in pairs(character:GetDescendants()) do
-                    if part:IsA("BasePart") then
-                        part.CanCollide = false
-                    end
-                end
-            end
-        })
-    else
-        local character = getCharacter()
-        if character then
-            for _, part in pairs(character:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = true
-                end
-            end
-        end
-    end
-end
-
----
--- Anti Ragdoll Logic (from original Fluent script)
----
-local function toggleAntiRagdoll(state)
-    states.antiRagdoll = state
-    local antiRagdollTask
-
-    local function WaitForChild(parent, childName)
-        return parent:WaitForChild(childName)
-    end
-
-    local function OnPropertyChange(instance, property, callback)
-        instance:GetPropertyChangedSignal(property):Connect(function()
-            callback(instance[property])
-        end)
-    end
-
-    local function ForEachChild(parent, className, callback)
-        for _, descendant in ipairs(parent:GetDescendants()) do
-            if descendant:IsA(className) then
-                callback(descendant)
-            end
-        end
-    end
-
-    local function GetSelf()
-        return game:GetService("Players").LocalPlayer
-    end
-
-    local function GetCharacter()
-        return GetSelf().Character
-    end
-
-    if connections.antiRagdollTask then
-        task.cancel(connections.antiRagdollTask)
-        connections.antiRagdollTask = nil
-    end
-
-    if state then
-        antiRagdollTask = task.spawn(function()
+local Toggle = Tabs.Player:AddToggle("MyToggle", {
+    Title = "⚡Speed Boost",
+    Description = "You Need Invis Cloak In your inventory!",
+    Default = false,
+    Callback = function(state)
+        task.spawn(function()
             local Config = {
-                BlacklistedHumanoidStates = {
-                    Enum.HumanoidStateType.Physics,
-                    Enum.HumanoidStateType.Ragdoll,
-                    Enum.HumanoidStateType.Dead,
-                },
+                Speed = 72,
+                NormalSpeed = 34,
             }
 
-            local function HookCharacter(Character)
-                local RootPart = WaitForChild(Character, "HumanoidRootPart")
-                RootPart.CanCollide = true
-
-                connections["AntiRagdoll_CanCollide_" .. Character.Name] = OnPropertyChange(RootPart, "CanCollide", function(CanCollide)
-                    if not CanCollide then
-                        RootPart.CanCollide = true
-                    end
-                })
-
-                local RagdollClient = Character:FindFirstChild("RagdollClient") -- Might not always exist, use FindFirstChild
-                if RagdollClient then
-                    RagdollClient.Enabled = false
-                    connections["AntiRagdoll_RagdollClient_" .. Character.Name] = OnPropertyChange(RagdollClient, "Enabled", function(Enabled)
-                        if Enabled then
-                            RagdollClient.Enabled = false
-                        end
-                    })
-                end
-
-                local Humanoid = WaitForChild(Character, "Humanoid")
-                connections["AntiRagdoll_StateChanged_" .. Character.Name] = Humanoid.StateChanged:Connect(function(_, State)
-                    if table.find(Config.BlacklistedHumanoidStates, State) then
-                        Humanoid:ChangeState(Enum.HumanoidStateType.Running)
-                    end
-                })
-
-                for _, Child in ipairs(Character:GetChildren()) do
-                    if not Child:IsA("MeshPart") and Child ~= RootPart and Child:IsA("BasePart") then
-                        -- Check if it's a part that could be anchored for ragdolls
-                        Child.Anchored = false
-                        connections["AntiRagdoll_Anchored_" .. Child.Name] = OnPropertyChange(Child, "Anchored", function(Anchored)
-                            if Anchored then
-                                Child.Anchored = false
-                            end
-                        })
-                    end
+            local function SetSpeed(Humanoid, Speed)
+                if Humanoid and Humanoid:FindFirstChild("WalkSpeed") then
+                    Humanoid.WalkSpeed = Speed
                 end
             end
 
-            local Character = GetCharacter()
-            if Character then
-                HookCharacter(Character)
+            local function HookHumanoid(Humanoid)
+                task.spawn(function()
+                    SetSpeed(Humanoid, Config.NormalSpeed)
+                end)
+
+                local function OnPropertyChange(Object, Property, Callback)
+                    Object:GetPropertyChangedSignal(Property):Connect(function()
+                        Callback(Object[Property])
+                    end)
+                end
+
+                OnPropertyChange(Humanoid, "WalkSpeed", function(WalkSpeed)
+                    if WalkSpeed ~= Config.Speed then
+                        SetSpeed(Humanoid, Config.Speed)
+                    end
+                end)
             end
 
-            connections["AntiRagdoll_CharacterAdded"] = GetSelf().CharacterAdded:Connect(function(Character)
-                HookCharacter(Character)
+            local function GetHumanoid()
+                return game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("Humanoid")
+            end
+
+            local Humanoid = GetHumanoid()
+
+            if Humanoid then
+                HookHumanoid(Humanoid)
+            end
+
+            game.Players.LocalPlayer.CharacterAdded:Connect(function(Character)
+                Humanoid = Character:WaitForChild("Humanoid")
+                HookHumanoid(Humanoid)
             end)
-        end)
-        connections.antiRagdollTask = antiRagdollTask -- Store the task for cancellation
-        sendNotification("[👻] Ghost Hub", "Anti Ragdoll is now enabled.", 5)
-    else
-        if connections.antiRagdollTask then
-            task.cancel(connections.antiRagdollTask)
-            connections.antiRagdollTask = nil
-        end
-        -- Disconnect all specific anti-ragdoll connections
-        for k, v in pairs(connections) do
-            if type(k) == "string" and k:match("^AntiRagdoll_") then
-                if type(v) == "userdata" and typeof(v) == "RBXScriptConnection" then
-                    v:Disconnect()
+
+            if state then
+                Config.Speed = 72
+                if Humanoid then
+                    SetSpeed(Humanoid, Config.Speed)
                 end
-                connections[k] = nil
+            else
+                Config.Speed = Config.NormalSpeed
+                if Humanoid then
+                    SetSpeed(Humanoid, Config.NormalSpeed)
+                end
             end
-        end
-        sendNotification("[👻] Ghost Hub", "Anti Ragdoll is now disabled.", 5)
-    end
-end
-
----
--- UI Tab Creation (using 3itx-UI-LIB structure)
----
-local MainTab = main:AddTab("Main")
-local StealTab = main:AddTab("Steal")
-local PlayerTab = main:AddTab("Player")
-local EspTab = main:AddTab("Esp")
-local BuyTab = main:AddTab("Buy")
-local ServerTab = main:AddTab("Server")
-local SettingsTab = main:AddTab("Settings")
-local NoteTab = main:AddTab("NOTE!")
-
-main:SelectTab(1) -- Select the first tab (Main) by default
-
----
-## Player Tab
----
-local PlayerSection = PlayerTab:AddSection({ Title = "Player Capabilities" })
-
-PlayerSection:AddToggle("SpeedBoost", {
-    Title = "⚡Speed Boost (Invis Cloak)",
-    Description = "You need 'Invisibility Cloak' in your inventory for best results.",
-    Default = false,
-    Callback = function(state)
-        states.speedBoost = state
-        local humanoid = getHumanoid()
-        local currentSpeed = state and 72 or originalWalkSpeed
-        if humanoid then
-            setRobustSpeed(humanoid, currentSpeed, true) -- Pass true for initial hook
-        end
+        end)
     end
 })
 
-PlayerSection:AddToggle("MaxSpeedBoost", {
+local Toggle = Tabs.Player:AddToggle("MyToggle", {
     Title = "🌠Max Speed Boost",
-    Description = "Requires 'Invisibility Cloak' & 'Speed Coil' in your inventory.",
+    Description = "You Need Invis Cloak & Speed Coil In your inventory!",
     Default = false,
     Callback = function(state)
-        states.maxSpeedBoost = state
-        local humanoid = getHumanoid()
-        local currentSpeed = state and 100 or originalWalkSpeed
-        if humanoid then
-            setRobustSpeed(humanoid, currentSpeed, true) -- Pass true for initial hook
-        end
+        task.spawn(function()
+            local Config = {
+                Speed = 100,
+                NormalSpeed = 34,
+            }
+
+            local function SetSpeed(Humanoid, Speed)
+                if Humanoid and Humanoid:FindFirstChild("WalkSpeed") then
+                    Humanoid.WalkSpeed = Speed
+                end
+            end
+
+            local function HookHumanoid(Humanoid)
+                task.spawn(function()
+                    SetSpeed(Humanoid, Config.NormalSpeed)
+                end)
+
+                local function OnPropertyChange(Object, Property, Callback)
+                    Object:GetPropertyChangedSignal(Property):Connect(function()
+                        Callback(Object[Property])
+                    end)
+                end
+
+                OnPropertyChange(Humanoid, "WalkSpeed", function(WalkSpeed)
+                    if WalkSpeed ~= Config.Speed then
+                        SetSpeed(Humanoid, Config.Speed)
+                    end
+                end)
+            end
+
+            local function GetHumanoid()
+                return game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("Humanoid")
+            end
+
+            local Humanoid = GetHumanoid()
+
+            if Humanoid then
+                HookHumanoid(Humanoid)
+            end
+
+            game.Players.LocalPlayer.CharacterAdded:Connect(function(Character)
+                Humanoid = Character:WaitForChild("Humanoid")
+                HookHumanoid(Humanoid)
+            end)
+
+            if state then
+                Config.Speed = 100
+                if Humanoid then
+                    SetSpeed(Humanoid, Config.Speed)
+                end
+            else
+                Config.Speed = Config.NormalSpeed
+                if Humanoid then
+                    SetSpeed(Humanoid, Config.NormalSpeed)
+                end
+            end
+        end)
     end
 })
 
-PlayerSection:AddToggle("InfiniteJump", {
+local Toggle = Tabs.Player:AddToggle("MyToggle", {
     Title = "🦘Infinite Jump",
-    Description = "Jump infinitely without limit! Just spam the spacebar.",
+    Description = "Can Jump Infinitely Without a Limit! Just Spam the Spacebar",
     Default = false,
     Callback = function(state)
-        states.infiniteJump = state
+        _G.infinjump = state
 
-        if connections.infiniteJumpKeyDown then
-            connections.infiniteJumpKeyDown:Disconnect()
-            connections.infiniteJumpKeyDown = nil
+        if _G.infinJumpStarted == nil then
+            _G.infinJumpStarted = true
+
+            Fluent:Notify({
+                Title = "[👻] Ghost Hub",
+                Content = "Infinite Jump script is now active!",
+                Duration = 6
+            })
+
+            local plr = game:GetService('Players').LocalPlayer
+            local mouse = plr:GetMouse()
+
+            mouse.KeyDown:Connect(function(key)
+                if _G.infinjump then
+                    if key:byte() == 32 then
+                        local humanoid = plr.Character and plr.Character:FindFirstChildOfClass("Humanoid")
+                        if humanoid then
+                            humanoid:ChangeState("Jumping")
+                            wait()
+                            humanoid:ChangeState("Seated")
+                        end
+                    end
+                end
+            end)
         end
 
         if state then
-            connections.infiniteJumpKeyDown = UserInputService.InputBegan:Connect(function(input, gameProcessed)
-                if gameProcessed then return end
-                if input.KeyCode == Enum.KeyCode.Space then
-                    local humanoid = getHumanoid()
-                    if humanoid and humanoid:GetState() ~= Enum.HumanoidStateType.Dead then
-                        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-                        task.wait() -- Allow a frame to pass
-                        humanoid:ChangeState(Enum.HumanoidStateType.Seated) -- Reset jump state
+            Fluent:Notify({
+                Title = "[👻] Ghost Hub",
+                Content = "Infinite Jump Enabled – Jump freely!",
+                Duration = 5
+            })
+        else
+            Fluent:Notify({
+                Title = "[👻] Ghost Hub",
+                Content = "Infinite Jump Disabled.",
+                Duration = 5
+            })
+        end
+    end
+})
+
+
+Tabs.Steal:AddButton({
+    Title = "🌃Teleport to Sky",
+    Callback = function()
+        local Config = {
+            Sky = 170,
+            Ground = -5,
+            SkyThreshold = 160,
+        }
+
+        local function GetRootPart()
+            local char = game:GetService("Players").LocalPlayer.Character
+            if char then
+                return char:FindFirstChild("HumanoidRootPart")
+            end
+        end
+
+        local RootPart = GetRootPart()
+        if not RootPart then
+            Fluent:Notify({
+                Title = "[👻] Ghost Hub",
+                Content = "HumanoidRootPart not found!",
+                Duration = 5
+            })
+            return
+        end
+
+        local RootPartCFrame = RootPart.CFrame
+
+        local function Teleport(Y)
+            local NewPosition = Vector3.new(RootPartCFrame.Position.X, Y, RootPartCFrame.Position.Z)
+            RootPart.CFrame = CFrame.new(NewPosition) * CFrame.Angles(RootPartCFrame:ToEulerAnglesXYZ())
+        end
+
+        if RootPartCFrame.Position.Y >= Config.SkyThreshold then
+            Teleport(Config.Ground)
+            Fluent:Notify({
+                Title = "[👻] Ghost Hub",
+                Content = "Teleporting to the ground.",
+                Duration = 5
+            })
+        else
+            Teleport(Config.Sky)
+            Fluent:Notify({
+                Title = "[👻] Ghost Hub",
+                Content = "Teleporting to the sky.",
+                Duration = 5
+            })
+        end
+    end
+})
+
+local Toggle = Tabs.Player:AddToggle("MyToggle", {
+    Title = "🕴️Anti Ragdoll",
+    Description = "Anti Ragdoll (you should know what this is!)",
+    Default = false,
+    Callback = function(state)
+        local running = false
+        local antiRagdollTask
+
+        local function WaitForChild(parent, childName)
+            return parent:WaitForChild(childName)
+        end
+
+        local function OnPropertyChange(instance, property, callback)
+            instance:GetPropertyChangedSignal(property):Connect(function()
+                callback(instance[property])
+            end)
+        end
+
+        local function ForEachChild(parent, className, callback)
+            for _, descendant in ipairs(parent:GetDescendants()) do
+                if descendant:IsA(className) then
+                    callback(descendant)
+                end
+            end
+        end
+
+        local function GetSelf()
+            return game:GetService("Players").LocalPlayer
+        end
+
+        local function GetCharacter()
+            return GetSelf().Character
+        end
+
+        if state then
+            running = true
+            antiRagdollTask = task.spawn(function()
+                local Config = {
+                    BlacklistedHumanoidStates = {
+                        Enum.HumanoidStateType.Physics,
+                        Enum.HumanoidStateType.Ragdoll,
+                        Enum.HumanoidStateType.Dead,
+                    },
+                }
+
+                local function HookCharacter(Character)
+                    local RootPart = WaitForChild(Character, "HumanoidRootPart")
+                    RootPart.CanCollide = true
+
+                    OnPropertyChange(RootPart, "CanCollide", function(CanCollide)
+                        if not CanCollide then
+                            RootPart.CanCollide = true
+                        end
+                    end)
+
+                    local RagdollClient = WaitForChild(Character, "RagdollClient")
+                    RagdollClient.Enabled = false
+
+                    OnPropertyChange(RagdollClient, "Enabled", function(Enabled)
+                        if Enabled then
+                            RagdollClient.Enabled = false
+                        end
+                    end)
+
+                    local Humanoid = WaitForChild(Character, "Humanoid")
+
+                    Humanoid.StateChanged:Connect(function(_, State)
+                        if table.find(Config.BlacklistedHumanoidStates, State) then
+                            Humanoid:ChangeState(Enum.HumanoidStateType.Running)
+                        end
+                    end)
+
+                    for _, Child in ipairs(Character:GetChildren()) do
+                        if not Child:IsA("MeshPart") and Child ~= RootPart then
+                            continue
+                        end
+
+                        Child.Anchored = false
+
+                        OnPropertyChange(Child, "Anchored", function(Anchored)
+                            if Anchored then
+                                Child.Anchored = false
+                            end
+                        end)
+
+                        ForEachChild(Child, "Attachment", function(Attachment)
+                            Attachment:Destroy()
+                        end)
                     end
                 end
+
+                local Character = GetCharacter()
+
+                if Character then
+                    HookCharacter(Character)
+                end
+
+                GetSelf().CharacterAdded:Connect(function(Character)
+                    HookCharacter(Character)
+                end)
             end)
-            sendNotification("[👻] Ghost Hub", "Infinite Jump Enabled – Jump freely!", 5)
+            Fluent:Notify({
+                Title = "[👻] Ghost Hub",
+                Content = "Anti Ragdoll is now enabled.",
+                Duration = 5
+            })
         else
-            sendNotification("[👻] Ghost Hub", "Infinite Jump Disabled.", 5)
+            running = false
+            Fluent:Notify({
+                Title = "[👻] Ghost Hub",
+                Content = "Anti Ragdoll is now disabled.",
+                Duration = 5
+            })
         end
     end
 })
 
-PlayerSection:AddToggle("AntiRagdoll", {
-    Title = "🕴️Anti Ragdoll",
-    Description = "Prevents your character from becoming ragdolled.",
-    Default = false,
-    Callback = function(state)
-        toggleAntiRagdoll(state)
-    end
-})
-
-PlayerSection:AddToggle("DisableAllScreenEffects", {
+local Toggle = Tabs.Player:AddToggle("MyToggle", {
     Title = "❌Disable All Screen Effects",
-    Description = "Disables effects like Bee Launcher blur, ColorCorrection, etc.",
+    Description = "Disable All Screen Effects Like Bee Launcher and Blur",
     Default = false,
     Callback = function(state)
-        states.disableScreenEffects = state
-
-        if connections.screenEffectsLoop then
-            connections.screenEffectsLoop:Disconnect()
-            connections.screenEffectsLoop = nil
-        end
-
         local Config = {
             BlacklistedObjects = {
                 "BeeBlur",
@@ -380,7 +387,15 @@ PlayerSection:AddToggle("DisableAllScreenEffects", {
             },
         }
 
-        local function ForEachChildToDestroy(parent, name, callback)
+        local function Notify(title, text)
+            Fluent:Notify({
+                Title = title,
+                Content = text,
+                Duration = 5
+            })
+        end
+
+        local function ForEachChild(parent, name, callback)
             for _, child in ipairs(parent:GetDescendants()) do
                 if child.Name == name then
                     callback(child)
@@ -389,344 +404,264 @@ PlayerSection:AddToggle("DisableAllScreenEffects", {
         end
 
         if state then
-            connections.screenEffectsLoop = RunService.Heartbeat:Connect(function()
+            task.spawn(function()
                 for _, BlacklistedObject in ipairs(Config.BlacklistedObjects) do
-                    ForEachChildToDestroy(game.Lighting, BlacklistedObject, function(Object)
-                        sendNotification("Blacklisted Lighting Effects", "Deleted " .. BlacklistedObject, 2)
+                    ForEachChild(game.Lighting, BlacklistedObject, function(Object)
+                        Notify("Blacklisted Lighting Effects", "Deleted " .. BlacklistedObject)
                         Object:Destroy()
                     end)
                 end
             end)
-            sendNotification("[👻] Ghost Hub", "Disable All Screen Effects is now enabled.", 5)
+            Fluent:Notify({
+                Title = "[👻] Ghost Hub",
+                Content = "Disable All Screen Effects is now enabled.",
+                Duration = 5
+            })
         else
-            sendNotification("[👻] Ghost Hub", "Disable All Screen Effects is now disabled.", 5)
+            Fluent:Notify({
+                Title = "[👻] Ghost Hub",
+                Content = "Disable All Screen Effects is now disabled.",
+                Duration = 5
+            })
         end
     end
 })
 
-PlayerSection:AddToggle("DisableAllAnimations", {
+
+local Toggle = Tabs.Player:AddToggle("MyToggle", {
     Title = "❌Disable All Animations",
-    Description = "Disables animations like Boogie Bomb, etc.",
+    Description = "Disable All Animations Like Boogie Bomb",
     Default = false,
     Callback = function(state)
-        states.disableAnimations = state
+        task.spawn(function()
+            local Config = {
+                BlacklistedAnimations = {
+                    "rbxassetid://109061983885712", -- Boogie Bomb
+                },
+            }
 
-        if connections.animationHook then
-            connections.animationHook:Disconnect()
-            connections.animationHook = nil
-        end
-        if connections.animationCharacterAdded then
-            connections.animationCharacterAdded:Disconnect()
-            connections.animationCharacterAdded = nil
-        end
-
-        local Config = {
-            BlacklistedAnimations = {
-                "rbxassetid://109061983885712", -- Boogie Bomb
-            },
-        }
-
-        local function HookHumanoid(Humanoid)
-            connections["AnimationPlayed_" .. Humanoid.Name] = Humanoid.AnimationPlayed:Connect(function(Animation)
-                local Id = Animation.Animation.AnimationId
-                if table.find(Config.BlacklistedAnimations, Id) then
-                    sendNotification("Blacklisted Animations", "Stopped " .. Id, 2)
-                    Animation:Stop()
-                end
-            end)
-        end
-
-        if state then
-            local Humanoid = getHumanoid()
-            if Humanoid then
-                HookHumanoid(Humanoid)
+            local function Notify(title, text)
+                Fluent:Notify({
+                    Title = title,
+                    Content = text,
+                    Duration = 5
+                })
             end
 
-            connections.animationCharacterAdded = player.CharacterAdded:Connect(function(Character)
-                local Humanoid = Character:WaitForChild("Humanoid")
-                HookHumanoid(Humanoid)
-            end)
+            local function WaitForChild(parent, childName)
+                return parent:WaitForChild(childName)
+            end
 
-            sendNotification("[👻] Ghost Hub", "Disable All Animations is now enabled.", 5)
-        else
-            sendNotification("[👻] Ghost Hub", "Disable All Animations is now disabled.", 5)
-        end
+            local function GetSelf()
+                return game:GetService("Players").LocalPlayer
+            end
+
+            local function GetHumanoid()
+                local char = GetSelf().Character
+                if char then
+                    return char:FindFirstChildOfClass("Humanoid")
+                end
+            end
+
+            local function HookHumanoid(Humanoid)
+                Humanoid.AnimationPlayed:Connect(function(Animation)
+                    local Id = Animation.Animation.AnimationId
+                    if table.find(Config.BlacklistedAnimations, Id) then
+                        Notify("Blacklisted Animations", "Stopped " .. Id)
+                        Animation:Stop()
+                    end
+                end)
+            end
+
+            if state then
+                local Humanoid = GetHumanoid()
+                if Humanoid then
+                    HookHumanoid(Humanoid)
+                end
+
+                GetSelf().CharacterAdded:Connect(function(Character)
+                    local Humanoid = WaitForChild(Character, "Humanoid")
+                    HookHumanoid(Humanoid)
+                end)
+
+                Fluent:Notify({
+                    Title = "[👻] Ghost Hub",
+                    Content = "Disable All Animations is now enabled.",
+                    Duration = 5
+                })
+            else
+                Fluent:Notify({
+                    Title = "[👻] Ghost Hub",
+                    Content = "Disable All Animations is now disabled.",
+                    Duration = 5
+                })
+            end
+        end)
     end
 })
 
-PlayerSection:AddToggle("AntiBeeLauncher", {
+local Toggle = Tabs.Player:AddToggle("MyToggle", {
     Title = "🐝Anti Bee Launcher",
-    Description = "Disables Bee Launcher effects.",
+    Description = "Anti Bee Launcher Disables Bee Launcher",
     Default = false,
     Callback = function(state)
-        states.antiBeeLauncher = state
-
-        if connections.antiBeeLoop then
-            connections.antiBeeLoop:Disconnect()
-            connections.antiBeeLoop = nil
-        end
-        if connections.antiBeeCharacterAdded then
-            connections.antiBeeCharacterAdded:Disconnect()
-            connections.antiBeeCharacterAdded = nil
-        end
-
-        local function ForEachParticleEmitter(parent, callback)
-            for _, descendant in ipairs(parent:GetDescendants()) do
-                if descendant:IsA("ParticleEmitter") then
-                    callback(descendant)
+        task.spawn(function()
+            local function ForEachChild(parent, className, callback)
+                for _, descendant in ipairs(parent:GetDescendants()) do
+                    if descendant:IsA(className) then
+                        callback(descendant)
+                    end
                 end
             end
-        end
 
-        local function HookHead(Head)
-            ForEachParticleEmitter(Head, function(ParticleEmitter)
-                sendNotification("Anti Bee Launcher", "Deleted ParticleEmitter", 2)
-                ParticleEmitter:Destroy()
-            end)
-        end
+            local function Notify(title, text)
+                Fluent:Notify({
+                    Title = title,
+                    Content = text,
+                    Duration = 5
+                })
+            end
 
-        if state then
-            connections.antiBeeLoop = RunService.Heartbeat:Connect(function()
-                local Head = getCharacter() and getCharacter():FindFirstChild("Head")
+            local function GetSelf()
+                return game:GetService("Players").LocalPlayer
+            end
+
+            local function GetCharacter()
+                return GetSelf().Character
+            end
+
+            local function WaitForChild(parent, childName)
+                return parent:WaitForChild(childName)
+            end
+
+            local function FindChild(parent, childName)
+                local current = parent
+                for part in childName:gmatch("[^/]+") do
+                    if current then
+                        current = current:FindFirstChild(part)
+                    else
+                        return nil
+                    end
+                end
+                return current
+            end
+
+            local function HookHead(Head)
+                ForEachChild(Head, "ParticleEmitter", function(ParticleEmitter)
+                    Notify("Anti Bee Launcher", "Deleted ParticleEmitter")
+                    ParticleEmitter:Destroy()
+                end)
+            end
+
+            if state then
+                local Head = FindChild(GetCharacter(), "Head")
                 if Head then
                     HookHead(Head)
                 end
-            end)
 
-            connections.antiBeeCharacterAdded = player.CharacterAdded:Connect(function(Character)
-                local Head = Character:WaitForChild("Head")
-                HookHead(Head)
-            end)
+                GetSelf().CharacterAdded:Connect(function(Character)
+                    local Head = WaitForChild(Character, "Head")
+                    HookHead(Head)
+                end)
 
-            sendNotification("[👻] Ghost Hub", "Anti Bee Launcher is now enabled.", 5)
-        else
-            sendNotification("[👻] Ghost Hub", "Anti Bee Launcher is now disabled.", 5)
-        end
+                Fluent:Notify({
+                    Title = "[👻] Ghost Hub",
+                    Content = "Anti Bee Launcher is now enabled.",
+                    Duration = 5
+                })
+            else
+                Fluent:Notify({
+                    Title = "[👻] Ghost Hub",
+                    Content = "Anti Bee Launcher is now disabled.",
+                    Duration = 5
+                })
+            end
+        end)
     end
 })
 
-PlayerSection:AddToggle("AntiAFK", {
+
+local Toggle = Tabs.Player:AddToggle("MyToggle", {
     Title = "💤Anti AFK",
-    Description = "Prevents you from being kicked for inactivity.",
+    Description = "Anti AFK so you don't get kicked",
     Default = false,
     Callback = function(state)
-        states.antiAFK = state
+        local Players = game:GetService("Players")
+        local VirtualUser = game:GetService("VirtualUser")
+        local LocalPlayer = Players.LocalPlayer
 
-        if connections.afkConnection then
-            connections.afkConnection:Disconnect()
-            connections.afkConnection = nil
-        end
+        if not _G.AfkConnection then _G.AfkConnection = nil end
 
         if state then
-            connections.afkConnection = player.Idled:Connect(function()
+            _G.AfkConnection = LocalPlayer.Idled:Connect(function()
                 VirtualUser:CaptureController()
-                VirtualUser:ClickButton2(Vector2.new()) -- Simulate right-click
-                -- You can also simulate movement keys like:
-                -- VirtualUser:Button1Down(Vector2.new(0,0))
-                -- VirtualUser:Button1Up(Vector2.new(0,0))
+                VirtualUser:ClickButton2(Vector2.new())
             end)
-            sendNotification("[👻] Ghost Hub", "Anti AFK is now enabled.", 5)
+            Fluent:Notify({
+                Title = "[👻] Ghost Hub",
+                Content = "Anti AFK is now enabled.",
+                Duration = 5
+            })
         else
-            sendNotification("[👻] Ghost Hub", "Anti AFK is now disabled.", 5)
+            if _G.AfkConnection then
+                _G.AfkConnection:Disconnect()
+                _G.AfkConnection = nil
+            end
+            Fluent:Notify({
+                Title = "[👻] Ghost Hub",
+                Content = "Anti AFK is now disabled.",
+                Duration = 5
+            })
         end
     end
 })
 
-PlayerSection:AddToggle("NoClipToggle", { -- Unique key for this toggle
-    Title = "👻 Noclip (Strong Bypass)",
-    Description = "Walk through walls without being sent back.",
-    Default = false,
-    Callback = function(state)
-        toggleNoClip(state)
-    end
-})
-
----
-## Steal Tab
----
-local StealSection = StealTab:AddSection({ Title = "Steal Functions" })
-
-StealSection:AddButton({
-    Title = "🌃Teleport to Sky",
-    Callback = function()
-        local Config = {
-            Sky = 170,
-            Ground = -5,
-            SkyThreshold = 160,
-        }
-
-        local RootPart = getRootPart()
-        if not RootPart then
-            sendNotification("[👻] Ghost Hub", "HumanoidRootPart not found!", 5)
-            return
-        end
-
-        local RootPartCFrame = RootPart.CFrame
-
-        local function Teleport(Y)
-            local NewPosition = Vector3.new(RootPartCFrame.Position.X, Y, RootPartCFrame.Position.Z)
-            -- For a stronger bypass, you might temporarily disable collision for parts
-            -- and ensure a direct CFrame set.
-            local currentNoClipState = states.noclip
-            if not currentNoClipState then toggleNoClip(true) end
-            RootPart.CFrame = CFrame.new(NewPosition) * CFrame.Angles(RootPartCFrame:ToEulerAnglesXYZ())
-            RootPart.Velocity = Vector3.zero -- Stop momentum
-            task.wait(0.1) -- Small wait for client to register
-            if not currentNoClipState then toggleNoClip(false) end
-        end
-
-        if RootPartCFrame.Position.Y >= Config.SkyThreshold then
-            Teleport(Config.Ground)
-            sendNotification("[👻] Ghost Hub", "Teleporting to the ground.", 5)
-        else
-            Teleport(Config.Sky)
-            sendNotification("[👻] Ghost Hub", "Teleporting to the sky.", 5)
-        end
-    end
-})
-
----
-## ESP Tab
----
-local EspSection = EspTab:AddSection({ Title = "Visuals" })
-
--- ESP Functions (adapted to 3itx-UI-LIB, retaining original logic)
-local espHighlights = {} -- Store Highlight instances
-local espBoxesCache = {} -- Store BillboardGui/Frame instances for ESP Boxes
-
-local function updateESP(playerObj, state)
-    -- Highlight ESP
-    local character = playerObj.Character
-    if character then
-        local highlight = character:FindFirstChild("Highlight")
-        if state then
-            if not highlight then
-                highlight = Instance.new("Highlight")
-                highlight.Parent = character
-                highlight.FillColor = Color3.fromRGB(255, 0, 0)
-                highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-                highlight.FillTransparency = 0.5
-                highlight.OutlineTransparency = 0
-            end
-            espHighlights[playerObj] = highlight
-        else
-            if highlight then
-                highlight:Destroy()
-            end
-            espHighlights[playerObj] = nil
-        end
-    end
-end
-
-local function updateESPBox(playerObj, state)
-    local character = playerObj.Character
-    if not character then return end
-
-    local existingEspBox = character:FindFirstChild("ESPBox")
-
-    if state then
-        if not existingEspBox then
-            existingEspBox = Instance.new("BillboardGui")
-            existingEspBox.Name = "ESPBox"
-            existingEspBox.Adornee = character:FindFirstChild("HumanoidRootPart")
-            existingEspBox.Size = UDim2.new(0, 150, 0, 100)
-            existingEspBox.StudsOffset = Vector3.new(0, 0, 0)
-            existingEspBox.Parent = character
-
-            local frame = Instance.new("Frame")
-            frame.Size = UDim2.new(1, 0, 1, 0)
-            frame.BackgroundTransparency = 1
-            frame.Parent = existingEspBox
-
-            local function createLine(name, size, position)
-                local line = Instance.new("Frame")
-                line.Name = name
-                line.Size = size
-                line.Position = position
-                line.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-                line.BorderSizePixel = 0
-                line.Parent = frame
-                return line
-            end
-
-            createLine("Top", UDim2.new(1, 0, 0, 2), UDim2.new(0, 0, 0, 0))
-            createLine("Bottom", UDim2.new(1, 0, 0, 2), UDim2.new(0, 0, 1, -2))
-            createLine("Left", UDim2.new(0, 2, 1, 0), UDim2.new(0, 0, 0, 0))
-            createLine("Right", UDim2.new(0, 2, 1, 0), UDim2.new(1, -2, 0, 0))
-
-            local nameLabel = Instance.new("TextLabel")
-            nameLabel.Size = UDim2.new(1, 0, 0, 20)
-            nameLabel.Position = UDim2.new(0, 0, 0, -25)
-            nameLabel.BackgroundTransparency = 1
-            nameLabel.Text = playerObj.Name
-            nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-            nameLabel.TextSize = 14
-            nameLabel.Font = Enum.Font.SourceSansBold
-            nameLabel.TextStrokeTransparency = 0
-            nameLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-            nameLabel.Parent = frame
-
-            espBoxesCache[playerObj] = existingEspBox
-        end
-    else
-        if existingEspBox then
-            existingEspBox:Destroy()
-        end
-        espBoxesCache[playerObj] = nil
-    end
-end
-
-
-EspSection:AddToggle("ESPPlayers", {
-    Title = "👥 ESP Player Highlights",
-    Description = "Highlight all players.",
-    Default = false,
-    Callback = function(value)
-        states.espPlayers = value
-        for _, targetPlayer in pairs(Players:GetPlayers()) do
-            if targetPlayer ~= player then
-                updateESP(targetPlayer, value)
-            end
-        end
-    end
-})
-
-EspSection:AddToggle("ESPBox", {
-    Title = "📦 ESP Box",
-    Description = "Show boxes around players.",
-    Default = false,
-    Callback = function(value)
-        states.espBox = value
-        for _, targetPlayer in pairs(Players:GetPlayers()) do
-            if targetPlayer ~= player then
-                updateESPBox(targetPlayer, value)
-            end
-        end
-    end
-})
-
----
-## Buy Tab
----
-local BuySection = BuyTab:AddSection({ Title = "Shop Automation" })
-
-BuySection:AddToggle("AutoBuyEssentials", {
+local Toggle = Tabs.Buy:AddToggle("MyToggle", {
     Title = "🪓 Auto Buy Essentials",
-    Description = "Auto Buy essential tools for stealing and speed boosts.",
+    Description = "Auto Buy Essentials For Auto Stealing, Stealing Normally, Also for Speed boost",
     Default = false,
     Callback = function(state)
-        states.autoBuyEssentials = state
+        local function Notify(Title, Text, Duration)
+            local StarterGui = game:GetService("StarterGui")
+            StarterGui:SetCore("SendNotification", {
+                Title = Title or "Notification",
+                Text = Text,
+                Duration = Duration or 0,
+            })
+        end
 
-        if connections.autoBuyLoop then
-            connections.autoBuyLoop:Disconnect()
-            connections.autoBuyLoop = nil
+        local function FindChild(Parent, Path)
+            if type(Parent) ~= "table" and not Parent:IsA("Instance") then
+                return
+            end
+            local Current = Parent
+            for ChildName in string.gmatch(Path, "[^/]+") do
+                if not Current then return end
+                Current = Current:FindFirstChild(ChildName)
+            end
+            return Current
         end
 
         local function GetBackpack()
             return game.Players.LocalPlayer:FindFirstChild("Backpack")
         end
 
-        local function MainBuyScript()
+        local function EquipTool(Tool)
+            if Tool and Tool:IsA("Tool") then
+                local Humanoid = game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("Humanoid")
+                if Humanoid then
+                    Humanoid:EquipTool(Tool)
+                end
+            end
+        end
+
+        local function ActivateTool(Tool)
+            if Tool and Tool:IsA("Tool") then
+                Tool:Activate()
+            end
+        end
+
+        local function MainScript()
             local Config = {
                 Interval = 0.6,
                 Items = {
@@ -740,8 +675,7 @@ BuySection:AddToggle("AutoBuyEssentials", {
                 Equip = "Invisibility Cloak",
             }
 
-            -- Auto-equip and activate specified tool
-            connections.autoEquipTask = task.spawn(function()
+            task.spawn(function()
                 if not (Config.Equip and Config.Equip ~= "") then
                     return
                 end
@@ -752,103 +686,116 @@ BuySection:AddToggle("AutoBuyEssentials", {
 
                 local function EquipAndActivateTool()
                     local Tool = GetTool()
+
                     while not Tool and task.wait() do
                         Tool = GetTool()
                     end
+
                     EquipTool(Tool)
                     ActivateTool(Tool)
-                    sendNotification("Shop", "Activated " .. Config.Equip, 2)
+                    Notify("Shop", "Activated " .. Config.Equip)
                 end
 
                 EquipAndActivateTool()
-                connections.autoEquipCharacterAdded = player.CharacterAdded:Connect(EquipAndActivateTool)
+                game.Players.LocalPlayer.CharacterAdded:Connect(EquipAndActivateTool)
             end)
 
+            local ReplicatedStorage = game:GetService("ReplicatedStorage")
             local Net = ReplicatedStorage:WaitForChild("Packages"):WaitForChild("Net")
             local Buy = Net:WaitForChild("RF/CoinsShopService/RequestBuy")
 
-            -- Loop to buy items
-            connections.buyItemsLoop = task.spawn(function()
-                while states.autoBuyEssentials do -- Loop as long as toggle is on
-                    for _, Item in ipairs(Config.Items) do
-                        task.wait(Config.Interval)
-                        Buy:InvokeServer(Item)
-                        sendNotification("Shop", "Purchased " .. Item, 2)
-                        if not states.autoBuyEssentials then break end -- Break if toggle turned off during loop
-                    end
-                    task.wait(1) -- Wait before re-checking all items
-                end
-            end)
+            for _, Item in ipairs(Config.Items) do
+                task.wait(Config.Interval)
+                Buy:InvokeServer(Item)
+                Notify("Shop", "Purchased " .. Item)
+            end
         end
 
         if state then
-            MainBuyScript()
-            sendNotification("Shop", "Auto Buy Essentials is now enabled.", 5)
+            MainScript()
+            Notify("Shop", "Auto Buy Essentials is now enabled.", 5)
         else
-            if connections.autoEquipTask then task.cancel(connections.autoEquipTask) connections.autoEquipTask = nil end
-            if connections.autoEquipCharacterAdded then connections.autoEquipCharacterAdded:Disconnect() connections.autoEquipCharacterAdded = nil end
-            if connections.buyItemsLoop then task.cancel(connections.buyItemsLoop) connections.buyItemsLoop = nil end
-            sendNotification("Shop", "Auto Buy Essentials is now disabled.", 5)
+            Notify("Shop", "Auto Buy Essentials is now disabled.", 5)
         end
     end
 })
 
----
-## Server Tab
----
-local ServerSection = ServerTab:AddSection({ Title = "Server Management" })
+local jobId = ""
 
-local jobIdInput = ServerSection:AddTextbox({ -- Use Textbox for Job ID input
+local Input = Tabs.Server:AddInput("Input", {
     Title = "Enter Job ID",
-    Default = "",
-    Description = "Enter a specific Job ID to join.",
-    PlaceHolder = "e.g., 07431dbd-8ae7-417e-a242-e5a01a33c740",
-    TextDisappear = false,
+    Default = "Enter Job ID",
+    Placeholder = "e.g., 07431dbd-8ae7-417e-a242-e5a01a33c740",
+    Numeric = false,
+    Finished = false,
     Callback = function(Value)
-        _G.jobId = Value -- Use a global variable or store it accessible by buttons
+        jobId = Value
     end
 })
 
-ServerSection:AddButton({
+Tabs.Server:AddButton({
     Title = "Join Job ID",
     Callback = function()
-        local jobId = _G.jobId or "" -- Retrieve from global or elsewhere
         if jobId ~= "" then
             local placeId = game.PlaceId
             local currentJobId = game.JobId
 
             if jobId == currentJobId then
-                sendNotification("[✅] Already in this Server", "You are already in the server with this Job ID.", 5)
+                Fluent:Notify({
+                    Title = "[✅] Already in the Server",
+                    Content = "You are already in the server with this Job ID.",
+                    Duration = 5
+                })
             else
                 local success, errorMessage = pcall(function()
                     TeleportService:TeleportToPlaceInstance(placeId, jobId, Players.LocalPlayer)
                 end)
 
                 if not success then
-                    sendNotification("[⚠️] Error", "Failed to teleport to the specified Job ID: " .. errorMessage, 5)
+                    Fluent:Notify({
+                        Title = "[⚠️] Error",
+                        Content = "Failed to teleport to the specified Job ID: " .. errorMessage,
+                        Duration = 5
+                    })
                 else
-                    sendNotification("[🚀] Teleporting", "Attempting to join Job ID: " .. jobId, 5)
+                    Fluent:Notify({
+                        Title = "[🚀] Teleporting",
+                        Content = "Attempting to join Job ID: " .. jobId,
+                        Duration = 5
+                    })
                 end
             end
         else
-            sendNotification("[⚠️] Error", "Please enter a valid Job ID.", 5)
+            Fluent:Notify({
+                Title = "[⚠️] Error",
+                Content = "Please enter a valid Job ID.",
+                Duration = 5
+            })
         end
     end
 })
 
-ServerSection:AddButton({
+Tabs.Server:AddButton({
     Title = "Clear Job ID",
     Callback = function()
-        _G.jobId = ""
-        jobIdInput:SetValue("") -- Set the textbox value to empty
-        sendNotification("[✔️] Cleared", "Job ID has been cleared.", 5)
+        jobId = ""
+        Input:SetValue("")
+
+        Fluent:Notify({
+            Title = "[✔️] Cleared",
+            Content = "Job ID has been cleared.",
+            Duration = 5
+        })
     end
 })
 
-ServerSection:AddButton({
+Tabs.Server:AddButton({
     Title = "Copy Job ID",
-    Description = "Copies your current server's Job ID to clipboard.",
+    Description = "Copies Your Server Job Id to Clipboard",
     Callback = function()
+        local Players = game:GetService("Players")
+        local LocalPlayer = Players.LocalPlayer
+
         local function copyToClipboard(text)
             if setclipboard then
                 setclipboard(text)
@@ -858,215 +805,106 @@ ServerSection:AddButton({
         end
 
         local jobId = game.JobId
+
         copyToClipboard(jobId)
-        sendNotification("[✔️] Success", "Job ID copied to clipboard: " .. jobId, 5)
+
+        Fluent:Notify({
+            Title = "[✔️] Success",
+            Content = "Job ID copied to clipboard: " .. jobId,
+            Duration = 5
+        })
     end
 })
 
-ServerSection:AddButton({
+local TeleportService = game:GetService("TeleportService")
+local Players = game:GetService("Players")
+local placeId = game.PlaceId
+local currentJobId = game.JobId
+
+local TeleportService = game:GetService("TeleportService")
+local Players = game:GetService("Players")
+local placeId = game.PlaceId
+local currentJobId = game.JobId
+
+Tabs.Server:AddButton({
     Title = "Server Hop",
-    Description = "Teleports you to a different server in the same game.",
+    Description = "Teleports you to a different server in the same game",
     Callback = function()
         local success, errorMessage = pcall(function()
-            local servers = {}
-            local currentJobId = game.JobId
+            local servers = {} 
+            local newJobId = "new_job_id_example"  -- You would dynamically get this in your system
 
-            local req = syn and syn.request or http_request or request
-            if not req then
-                sendNotification("[⚠️] Error", "HTTP Request function not available. Cannot hop servers.", 5)
-                return
-            end
-
-            local httpSuccess, httpResult = pcall(function()
-                return req({
-                    Url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100",
-                    Method = "GET"
+            if newJobId ~= currentJobId then
+                TeleportService:TeleportToPlaceInstance(placeId, newJobId, Players.LocalPlayer)
+                Fluent:Notify({
+                    Title = "[🚀] Server Hopping",
+                    Content = "Attempting to hop to a new server...",
+                    Duration = 5
                 })
-            end)
-
-            if httpSuccess and httpResult.Success then
-                local data = HttpService:JSONDecode(httpResult.Body)
-                for _, server in pairs(data.data) do
-                    if server.playing < server.maxPlayers and server.id ~= currentJobId then
-                        table.insert(servers, server.id)
-                    end
-                end
-
-                if #servers > 0 then
-                    TeleportService:TeleportToPlaceInstance(game.PlaceId, servers[math.random(1, #servers)], Players.LocalPlayer)
-                    sendNotification("[🚀] Server Hopping", "Attempting to hop to a new server...", 5)
-                else
-                    sendNotification("[✅] No Available Servers", "No other available servers found to hop to.", 5)
-                end
             else
-                sendNotification("[⚠️] Error", "Failed to get server list from Roblox API.", 5)
-                warn("Server Hop HTTP Error:", httpResult and httpResult.Body or errorMessage)
+                Fluent:Notify({
+                    Title = "[✅] Already in a Different Server",
+                    Content = "You are already in a different server.",
+                    Duration = 5
+                })
             end
         end)
 
         if not success then
             if errorMessage:match("Error Code: 773") then
-                sendNotification("[⚠️] Teleport Error", "The game instance cannot be joined (Error Code 773). Please try again later.", 5)
+                Fluent:Notify({
+                    Title = "[⚠️] Teleport Error",
+                    Content = "The game instance cannot be joined (Error Code 773). Please try again later.",
+                    Duration = 5
+                })
             else
-                sendNotification("[⚠️] Error", "An error occurred while attempting to hop to a new server: " .. errorMessage, 5)
+                Fluent:Notify({
+                    Title = "[⚠️] Error",
+                    Content = "An error occurred while attempting to hop to a new server: " .. errorMessage,
+                    Duration = 5
+                })
             end
         end
     end
 })
 
----
-## Settings Tab (Managed by FlagsManager)
----
--- The Config tab from your template is now used for FlagsManager
-local ConfigTab = main:AddTab("Config")
-FlagsManager:SetLibrary(main) -- Use the main UI instance
-FlagsManager:SetIgnoreIndexes({})
-FlagsManager:SetFolder("GhostHubConfig") -- Changed to a specific folder name for Ghost Hub
-FlagsManager:InitSaveSystem(ConfigTab)
 
--- Note: 3itx-UI-LIB's FlagsManager typically handles saving/loading of all registered Toggles, Sliders, Dropdowns, etc., that have unique string keys.
 
----
-## NOTE! Tab
----
-local NoteSection = NoteTab:AddSection({ Title = "Important Information" })
-NoteSection:AddParagraph({
-    Title = "[👻] Ghost Hub Info",
-    Description = "This hub was originally developed by ktro. This version is a conversion to 3itx-UI-LIB with enhanced bypasses.",
+
+-- Addons:
+-- SaveManager (Allows you to have a configuration system)
+-- InterfaceManager (Allows you to have a interface managment system)
+
+-- Hand the library over to our managers
+SaveManager:SetLibrary(Fluent)
+InterfaceManager:SetLibrary(Fluent)
+
+-- Ignore keys that are used by ThemeManager.
+-- (we dont want configs to save themes, do we?)
+SaveManager:IgnoreThemeSettings()
+
+-- You can add indexes of elements the save manager should ignore
+SaveManager:SetIgnoreIndexes({})
+
+-- use case for doing it this way:
+-- a script hub could have themes in a global folder
+-- and game configs in a separate folder per game
+InterfaceManager:SetFolder("FluentScriptHub")
+SaveManager:SetFolder("FluentScriptHub/specific-game")
+
+InterfaceManager:BuildInterfaceSection(Tabs.Settings)
+SaveManager:BuildConfigSection(Tabs.Settings)
+
+
+Window:SelectTab(1)
+
+Fluent:Notify({
+    Title = "[👻] Ghost Hub",
+    Content = "Thank you for executing/loading [👻] Ghost Hub",
+    Duration = 10
 })
 
----
-## Main Update Loop & Character Event Handling
----
-
--- Initial character setup and re-hooking on respawn
-player.CharacterAdded:Connect(function(character)
-    task.wait(1) -- Give time for character to fully load
-
-    local humanoid = getHumanoid()
-    if humanoid then
-        -- Re-apply Speed
-        if states.speedBoost then
-            setRobustSpeed(humanoid, 72, true)
-        elseif states.maxSpeedBoost then
-            setRobustSpeed(humanoid, 100, true)
-        end
-
-        -- Re-apply AntiRagdoll
-        if states.antiRagdoll then
-            toggleAntiRagdoll(true) -- Re-runs the setup
-        end
-
-        -- Re-apply Infinite Jump
-        if states.infiniteJump then
-            -- The InputBegan connection should persist, but ensure humanoid state can be changed
-            -- No special re-application needed unless JumpRequest disconnects on respawn
-        end
-
-        -- Re-apply NoClip
-        if states.noclip then
-            toggleNoClip(true)
-        end
-    end
-
-    -- Re-apply Visuals for other players if they load/respawn
-    for _, targetPlayer in pairs(Players:GetPlayers()) do
-        if targetPlayer ~= player and targetPlayer.Character then
-            if states.espPlayers then
-                updateESP(targetPlayer, true)
-            end
-            if states.espBox then
-                updateESPBox(targetPlayer, true)
-            end
-        end
-    end
-end)
-
--- Handle players joining/leaving for ESP
-Players.PlayerAdded:Connect(function(newPlayer)
-    newPlayer.CharacterAdded:Connect(function(character)
-        task.wait(0.5) -- Small delay for character parts to load
-        if states.espPlayers and newPlayer ~= player then
-            updateESP(newPlayer, true)
-        end
-        if states.espBox and newPlayer ~= player then
-            updateESPBox(newPlayer, true)
-        end
-    end)
-end)
-
-Players.PlayerRemoving:Connect(function(leavingPlayer)
-    if leavingPlayer.Character then
-        updateESP(leavingPlayer, false) -- Remove highlight
-        updateESPBox(leavingPlayer, false) -- Remove ESP box
-    end
-end)
-
--- Centralized Heartbeat loop for continuous checks (e.g., Fast Steal, Screen Effects, etc.)
-connections.mainLoop = RunService.Heartbeat:Connect(function()
-    -- Fast Steal (ProximityPrompt modification)
-    if states.fastSteal then
-        for _, v in pairs(Workspace:GetDescendants()) do
-            if v:IsA("ProximityPrompt") then
-                v.HoldDuration = 0
-                v.KeyboardKeyCode = Enum.KeyCode.E -- Set a default key if none is set
-                v.ActionText = "Instant Steal"
-            end
-        end
-    end
-
-    -- For Auto Collect Money (handled by its toggle callback now via a spawn/loop)
-    -- For Disable Screen Effects (handled by its toggle callback via a loop)
-    -- For Anti Bee Launcher (handled by its toggle callback via a loop)
-    -- For Anti AFK (handled by its toggle callback)
-    -- For Disable All Animations (handled by its toggle callback)
-end)
-
--- Initial welcome notification
-sendNotification('[👻] Ghost Hub', 'Thank you for executing/loading [👻] Ghost Hub', 10)
-
--- Select the default tab (Main) after all tabs are added
-main:SelectTab("Main") -- Or use main:SelectTab(1)
-
-
--- Cleanup on script end (Crucial for preventing memory leaks and lingering effects)
-game:BindToClose(function()
-    -- Disconnect all stored connections
-    for k, v in pairs(connections) do
-        if type(v) == "userdata" and typeof(v) == "RBXScriptConnection" then
-            pcall(function() v:Disconnect() end)
-        elseif type(v) == "table" then -- For tables of connections (like per-humanoid speed hooks)
-            for _, conn in pairs(v) do
-                if type(conn) == "userdata" and typeof(conn) == "RBXScriptConnection" then
-                    pcall(function() conn:Disconnect() end)
-                end
-            end
-        elseif type(v) == "thread" then -- For spawned tasks
-            pcall(function() task.cancel(v) end)
-        end
-    end
-
-    -- Remove all dynamic UI elements/visuals created
-    for playerObj, highlight in pairs(espHighlights) do
-        if highlight and highlight.Parent then highlight:Destroy() end
-    end
-    for playerObj, espBox in pairs(espBoxesCache) do
-        if espBox and espBox.Parent then espBox:Destroy() end
-    end
-
-    -- Revert persistent changes made by toggles
-    local humanoid = getHumanoid()
-    if humanoid then
-        humanoid.WalkSpeed = originalWalkSpeed
-        humanoid.JumpPower = originalJumpPower
-        if humanoid:FindFirstChild("ForceField") then humanoid.ForceField:Destroy() end
-    end
-    local character = getCharacter()
-    if character then
-        for _, part in pairs(character:GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.CanCollide = true -- Revert NoClip
-            end
-        end
-    end
-end)
+-- You can use the SaveManager:LoadAutoloadConfig() to load a config
+-- which has been marked to be one that auto loads!
+SaveManager:LoadAutoloadConfig()
+ 
