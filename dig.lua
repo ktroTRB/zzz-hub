@@ -5,7 +5,7 @@ end
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-   Name = "HLemon Hub | Dig Games [Premium Script]",
+   Name = "zzz Hub | Dig Games  ",
    Icon = 133520378097790,
    LoadingTitle = "DiG Game Script zzz hub",
    LoadingSubtitle = "Join zzz hub",
@@ -145,42 +145,42 @@ local guiVisible = true
 ScreenGui.Enabled = guiVisible
 
 Tab:CreateToggle({
-	Name = "Show Basic GUI",
-	CurrentValue = true,
-	Flag = "ShowBasicGUI",
-	Callback = function(Value)
-		guiVisible = Value
-		ScreenGui.Enabled = guiVisible
-		warn("Basic GUI visible:", guiVisible)
-	end,
+        Name = "Show Basic GUI",
+        CurrentValue = true,
+        Flag = "ShowBasicGUI",
+        Callback = function(Value)
+                guiVisible = Value
+                ScreenGui.Enabled = guiVisible
+                warn("Basic GUI visible:", guiVisible)
+        end,
 })
 
 -- ✅ Boss checker
 task.spawn(function()
-	while true do
-		if guiVisible then
-			local bossSpawns = workspace:FindFirstChild("Spawns") and workspace.Spawns:FindFirstChild("BossSpawns")
-			local foundBoss = false
+        while true do
+                if guiVisible then
+                        local bossSpawns = workspace:FindFirstChild("Spawns") and workspace.Spawns:FindFirstChild("BossSpawns")
+                        local foundBoss = false
 
-			if bossSpawns then
-				for _, boss in ipairs(bossSpawns:GetChildren()) do
-					if boss:FindFirstChildWhichIsA("Model") or #boss:GetChildren() > 0 then
-						foundBoss = true
-						break
-					end
-				end
-			end
+                        if bossSpawns then
+                                for _, boss in ipairs(bossSpawns:GetChildren()) do
+                                        if boss:FindFirstChildWhichIsA("Model") or #boss:GetChildren() > 0 then
+                                                foundBoss = true
+                                                break
+                                        end
+                                end
+                        end
 
-			if foundBoss then
-				BossStatus.Text = "Boss Status: 🟥 Spawned!"
-				BossStatus.TextColor3 = Color3.fromRGB(255, 0, 0)
-			else
-				BossStatus.Text = "Boss Status: ✅ None"
-				BossStatus.TextColor3 = Color3.fromRGB(0, 255, 0)
-			end
-		end
-		task.wait(1)
-	end
+                        if foundBoss then
+                                BossStatus.Text = "Boss Status: 🟥 Spawned!"
+                                BossStatus.TextColor3 = Color3.fromRGB(255, 0, 0)
+                        else
+                                BossStatus.Text = "Boss Status: ✅ None"
+                                BossStatus.TextColor3 = Color3.fromRGB(0, 255, 0)
+                        end
+                end
+                task.wait(1)
+        end
 end)
 
 warn("✅ Basic GUI loaded & boss status enabled.")
@@ -226,20 +226,82 @@ local Button = Tab:CreateButton({
 local Tab = Window:CreateTab("Farm", nil)
 local Section = Tab:CreateSection("DIG Main")
 
--- ✅ Script logic
+-- ✅ Enhanced Auto Dig (Fast) Script logic
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 local Backpack = LocalPlayer:WaitForChild("Backpack")
 local Holes = workspace:WaitForChild("World"):WaitForChild("Zones"):WaitForChild("_NoDig")
+local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 
 local ENABLED = false
 local digCount = 0
 local connections = {}
+local lastShovelCheck = 0
+local shovelCheckInterval = 1 -- Check every 1 second
+
+-- ✅ Enhanced shovel list
+local shovelNames = {
+    "Wooden Shovel", "Bejeweled Shovel", "Training Shovel", "Toy Shovel",
+    "Copper Shovel", "Rock Shovel", "Lucky Shovel", "Ruby Shovel",
+    "Abyssal Shovel", "Bell Shovel", "Magnet Shovel", "Jam Shovel",
+    "Candlelight Shovel", "Spore Spade", "Slayers Shovel", "Arachnid Shovel",
+    "Shortcake Shovel", "Pizza Roller", "Rock Splitter", "Archaic Shovel",
+    "Frigid Shovel", "Venomous Shovel", "Gold Digger", "Obsidian Shovel",
+    "Prismatic Shovel", "Beast Slayer", "Solstice Shovel", "Glinted Shovel",
+    "Draconic Shovel", "Monstrous Shovel", "Starfire Shovel"
+}
+
+function hasShovelEquipped()
+    local character = LocalPlayer.Character
+    if not character then return false end
+    
+    local tool = character:FindFirstChildOfClass("Tool")
+    if not tool then return false end
+    
+    -- Check if the equipped tool is a shovel
+    for _, shovelName in ipairs(shovelNames) do
+        if tool.Name == shovelName then
+            return true, tool
+        end
+    end
+    return false, nil
+end
+
+function getShovelFromBackpack()
+    for _, tool in ipairs(Backpack:GetChildren()) do
+        if tool:IsA("Tool") then
+            for _, shovelName in ipairs(shovelNames) do
+                if tool.Name == shovelName then
+                    return tool
+                end
+            end
+        end
+    end
+    return nil
+end
+
+function ensureShovelEquipped()
+    local hasEquipped, equippedShovel = hasShovelEquipped()
+    if hasEquipped then return true end
+    
+    -- Try to equip a shovel from backpack
+    local availableShovel = getShovelFromBackpack()
+    if availableShovel then
+        pcall(function()
+            Remotes:WaitForChild("Backpack_Equip"):FireServer(availableShovel)
+        end)
+        task.wait(0.2) -- Wait for equip to complete
+        return hasShovelEquipped()
+    end
+    
+    return false
+end
 
 function getTool()
-    return LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool")
+    local hasEquipped, tool = hasShovelEquipped()
+    return hasEquipped and tool or nil
 end
 
 function destroyHitbox()
@@ -248,6 +310,15 @@ function destroyHitbox()
 end
 
 function activateTool()
+    if not ENABLED then return end
+    
+    -- Check if we have a shovel equipped (with periodic check)
+    local currentTime = tick()
+    if currentTime - lastShovelCheck > shovelCheckInterval then
+        ensureShovelEquipped()
+        lastShovelCheck = currentTime
+    end
+    
     local tool = getTool()
     if tool then
         destroyHitbox()
@@ -278,18 +349,30 @@ function setupEvents()
 
     table.insert(connections, LocalPlayer.CharacterAdded:Connect(function(char)
         char.ChildAdded:Connect(function(v)
-            if ENABLED and v:IsA("Tool") and v.Name:lower():find("shovel") then
-                task.wait(0.1)
-                activateTool()
+            if ENABLED and v:IsA("Tool") then
+                -- Check if it's a shovel
+                for _, shovelName in ipairs(shovelNames) do
+                    if v.Name == shovelName then
+                        task.wait(0.1)
+                        activateTool()
+                        break
+                    end
+                end
             end
         end)
     end))
 
     if LocalPlayer.Character then
         table.insert(connections, LocalPlayer.Character.ChildAdded:Connect(function(v)
-            if ENABLED and v:IsA("Tool") and v.Name:lower():find("shovel") then
-                task.wait(0.1)
-                activateTool()
+            if ENABLED and v:IsA("Tool") then
+                -- Check if it's a shovel
+                for _, shovelName in ipairs(shovelNames) do
+                    if v.Name == shovelName then
+                        task.wait(0.1)
+                        activateTool()
+                        break
+                    end
+                end
             end
         end))
     end
@@ -312,7 +395,7 @@ function cleanupEvents()
     connections = {}
 end
 
--- ✅ Toggle
+-- ✅ Enhanced Toggle
 Tab:CreateToggle({
     Name = "Auto Dig (Fast)",
     CurrentValue = false,
@@ -321,31 +404,113 @@ Tab:CreateToggle({
         ENABLED = Value
         if Value then
             digCount = 0
+            -- Ensure we have a shovel equipped when starting
+            if not ensureShovelEquipped() then
+                Rayfield:Notify({
+                    Title = "No Shovel Found",
+                    Content = "Please get a shovel from the shop first!",
+                    Duration = 4
+                })
+                return
+            end
             setupEvents()
+            Rayfield:Notify({
+                Title = "Auto Dig Enabled",
+                Content = "Fast auto dig is now active with shovel detection",
+                Duration = 3
+            })
         else
             cleanupEvents()
         end
     end,
 })
 
+-- ✅ Enhanced Auto Dig (Slow) Script logic
 local local_player = game:GetService("Players").LocalPlayer
 local workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Backpack = local_player:WaitForChild("Backpack")
+local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 
 local holes = workspace:FindFirstChild("World"):FindFirstChild("Zones"):FindFirstChild("_NoDig")
 
 getgenv().enabled = false -- default off
+local slowDigLastCheck = 0
+local slowDigCheckInterval = 2 -- Check every 2 seconds
+
+-- ✅ Enhanced shovel detection for slow dig
+function hasShovelEquippedSlow()
+    local character = local_player.Character
+    if not character then return false end
+    
+    local tool = character:FindFirstChildOfClass("Tool")
+    if not tool then return false end
+    
+    -- Check if the equipped tool is a shovel
+    for _, shovelName in ipairs(shovelNames) do
+        if tool.Name == shovelName then
+            return true, tool
+        end
+    end
+    return false, nil
+end
+
+function getShovelFromBackpackSlow()
+    for _, tool in ipairs(Backpack:GetChildren()) do
+        if tool:IsA("Tool") then
+            for _, shovelName in ipairs(shovelNames) do
+                if tool.Name == shovelName then
+                    return tool
+                end
+            end
+        end
+    end
+    return nil
+end
+
+function ensureShovelEquippedSlow()
+    local hasEquipped, equippedShovel = hasShovelEquippedSlow()
+    if hasEquipped then return true end
+    
+    -- Try to equip a shovel from backpack
+    local availableShovel = getShovelFromBackpackSlow()
+    if availableShovel then
+        pcall(function()
+            Remotes:WaitForChild("Backpack_Equip"):FireServer(availableShovel)
+        end)
+        task.wait(0.2) -- Wait for equip to complete
+        return hasShovelEquippedSlow()
+    end
+    
+    return false
+end
 
 function get_tool()
-    return local_player.Character:FindFirstChildOfClass("Tool")
+    local hasEquipped, tool = hasShovelEquippedSlow()
+    return hasEquipped and tool or nil
+end
+
+function checkAndEquipShovel()
+    local currentTime = tick()
+    if currentTime - slowDigLastCheck > slowDigCheckInterval then
+        ensureShovelEquippedSlow()
+        slowDigLastCheck = currentTime
+    end
 end
 
 local_player.Character.ChildAdded:Connect(function(v)
-    if enabled and v:IsA("Tool") and v.Name:find("Shovel") then
-        task.wait(1)
-        if holes:FindFirstChild(local_player.Name.."_Crater_Hitbox") then
-            holes[local_player.Name.."_Crater_Hitbox"]:Destroy()
+    if enabled and v:IsA("Tool") then
+        -- Check if it's a shovel
+        for _, shovelName in ipairs(shovelNames) do
+            if v.Name == shovelName then
+                task.wait(1)
+                if holes:FindFirstChild(local_player.Name.."_Crater_Hitbox") then
+                    holes[local_player.Name.."_Crater_Hitbox"]:Destroy()
+                end
+                v:Activate()
+                break
+            end
         end
-        v:Activate()
     end
 end)
 
@@ -356,6 +521,7 @@ local_player.PlayerGui.ChildAdded:Connect(function(v)
         player_bar:GetPropertyChangedSignal("Position"):Connect(function()
             if not enabled then return end
             if math.abs(player_bar.Position.X.Scale - strong_bar.Position.X.Scale) <= 0.04 then
+                checkAndEquipShovel()
                 local tool = get_tool()
                 if tool then
                     tool:Activate()
@@ -372,6 +538,7 @@ local_player:GetAttributeChangedSignal("IsDigging"):Connect(function()
         if holes:FindFirstChild(local_player.Name.."_Crater_Hitbox") then
             holes[local_player.Name.."_Crater_Hitbox"]:Destroy()
         end
+        checkAndEquipShovel()
         local tool = get_tool()
         if tool then
             tool:Activate()
@@ -379,7 +546,7 @@ local_player:GetAttributeChangedSignal("IsDigging"):Connect(function()
     end
 end)
 
--- 🧰 Rayfield Toggle
+-- 🧰 Enhanced Rayfield Toggle
 local Toggle = Tab:CreateToggle({
    Name = "Auto Dig (slow)",
    CurrentValue = false,
@@ -387,6 +554,22 @@ local Toggle = Tab:CreateToggle({
    Callback = function(Value)
        -- Set enabled on/off saat toggle ditekan
        getgenv().enabled = Value
+       if Value then
+           -- Check if we have a shovel equipped when starting
+           if not ensureShovelEquippedSlow() then
+               Rayfield:Notify({
+                   Title = "No Shovel Found",
+                   Content = "Please get a shovel from the shop first!",
+                   Duration = 4
+               })
+               return
+           end
+           Rayfield:Notify({
+               Title = "Auto Dig Enabled",
+               Content = "Slow auto dig is now active with shovel detection",
+               Duration = 3
+           })
+       end
    end,
 })
 
@@ -986,12 +1169,12 @@ Tab:CreateSlider({
 
 -- Loop Auto Sell
 task.spawn(function()
-	while task.wait(1) do
-		if getgenv().autoSell then
-			SellAllItems:FireServer(Rocky)
-			task.wait(getgenv().sellDelay)
-		end
-	end
+        while task.wait(1) do
+                if getgenv().autoSell then
+                        SellAllItems:FireServer(Rocky)
+                        task.wait(getgenv().sellDelay)
+                end
+        end
 end)
 
 local Tab = Window:CreateTab("Magnets", nil)
@@ -1372,3 +1555,97 @@ bossesFolder.ChildAdded:Connect(function(child)
         notifyBoss(child.Name)
     end
 end)
+
+-- ✅ Anti Auto-Purchase System for Meteor Shower
+local Tab = Window:CreateTab("Anti Auto-Purchase", nil)
+local Section = Tab:CreateSection("Protection")
+
+-- Global flag to prevent auto-purchases
+getgenv().preventAutoPurchase = true
+
+-- Block automatic dialogue responses that could trigger purchases
+local function blockAutoPurchase()
+    local ReplicatedStorage = game:GetService("ReplicatedStorage")
+    local DialogueRemotes = ReplicatedStorage:FindFirstChild("DialogueRemotes")
+    
+    if DialogueRemotes then
+        local RemoteFunc = DialogueRemotes:FindFirstChild("RemoteFunc")
+        if RemoteFunc then
+            -- Hook the RemoteFunc to prevent unwanted purchases
+            local oldFireServer = RemoteFunc.FireServer
+            RemoteFunc.FireServer = function(self, ...)
+                local args = {...}
+                
+                -- Block meteor shower purchases if auto-purchase is disabled
+                if getgenv().preventAutoPurchase then
+                    local argString = tostring(args[1] or "")
+                    if argString:lower():find("meteor") or argString:lower():find("shower") then
+                        warn("⚠️ Blocked automatic meteor shower purchase!")
+                        return
+                    end
+                end
+                
+                return oldFireServer(self, ...)
+            end
+        end
+    end
+end
+
+-- Toggle for auto-purchase protection
+Tab:CreateToggle({
+    Name = "Block Auto Meteor Shower Purchase",
+    CurrentValue = true,
+    Flag = "BlockAutoPurchase",
+    Callback = function(Value)
+        getgenv().preventAutoPurchase = Value
+        if Value then
+            blockAutoPurchase()
+            Rayfield:Notify({
+                Title = "Protection Enabled",
+                Content = "Automatic meteor shower purchases are now blocked",
+                Duration = 3
+            })
+        else
+            Rayfield:Notify({
+                Title = "Protection Disabled",
+                Content = "Automatic meteor shower purchases are now allowed",
+                Duration = 3
+            })
+        end
+    end,
+})
+
+-- Manual meteor shower purchase button (for when users actually want it)
+Tab:CreateButton({
+    Name = "Manual Meteor Shower Purchase",
+    Callback = function()
+        local ReplicatedStorage = game:GetService("ReplicatedStorage")
+        local DialogueRemotes = ReplicatedStorage:FindFirstChild("DialogueRemotes")
+        
+        if DialogueRemotes then
+            local RemoteFunc = DialogueRemotes:FindFirstChild("RemoteFunc")
+            if RemoteFunc then
+                -- Temporarily disable protection for manual purchase
+                local oldProtection = getgenv().preventAutoPurchase
+                getgenv().preventAutoPurchase = false
+                
+                -- Attempt manual purchase (you'll need to adjust this based on the actual purchase method)
+                pcall(function()
+                    RemoteFunc:FireServer("meteor_shower") -- Adjust this parameter as needed
+                end)
+                
+                -- Restore protection
+                getgenv().preventAutoPurchase = oldProtection
+                
+                Rayfield:Notify({
+                    Title = "Manual Purchase",
+                    Content = "Attempted manual meteor shower purchase",
+                    Duration = 3
+                })
+            end
+        end
+    end,
+})
+
+-- Initialize the protection on script load
+blockAutoPurchase()
