@@ -2,13 +2,36 @@ if game.PlaceId ~= 126244816328678 then
     return
 end
 
-local lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/Just3itx/3itx-UI-LIB/refs/heads/main/Lib"))() 
-local FlagsManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/Just3itx/3itx-UI-LIB/refs/heads/main/ConfigManager"))()
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
-local main = lib:Load({
-    Title = '🔥 zzz Hub | Dig Games 🔥',
-    ToggleButton = "rbxassetid://133520378097790",
-    BindGui = Enum.KeyCode.RightControl,
+local Window = Rayfield:CreateWindow({
+   Name = "zzz Hub | Dig Games  ",
+   Icon = 133520378097790,
+   LoadingTitle = "DiG Game Script zzz hub",
+   LoadingSubtitle = "Join zzz hub",
+   Theme = "DarkBlue",
+   DisableRayfieldPrompts = false,
+   DisableBuildWarnings = false,
+   ConfigurationSaving = {
+      Enabled = true,
+      FolderName = "zzz",
+      FileName = "zzz"
+   },
+   Discord = {
+      Enabled = true,
+      Invite = "PaRYpmJ4cG",
+      RememberJoins = true
+   },
+   KeySystem = False,
+   KeySettings = {
+      Title = "Han Key",
+      Subtitle = "Key system",
+      Note = "Mau Key? Buy Key Premium",
+      FileName = "Key",
+      SaveKey = true,
+      GrabKeyFromSite = false,
+      Key = {"Premium_jfgue786eh767et75egyf5"}
+   }
 })
 
 -- Buat part transparan untuk Billboard
@@ -200,10 +223,8 @@ local Button = Tab:CreateButton({
    end,
 })
 
-local FarmTab = main:AddTab("Farm")
-main:SelectTab()
-
-local FarmSection = FarmTab:AddSection({Title = "DIG Main", Description = "Auto dig functionality", Default = false, Locked = false})
+local Tab = Window:CreateTab("Farm", nil)
+local Section = Tab:CreateSection("DIG Main")
 
 -- ✅ Enhanced Auto Dig (Fast) Script logic
 local Players = game:GetService("Players")
@@ -231,11 +252,6 @@ local shovelNames = {
     "Prismatic Shovel", "Beast Slayer", "Solstice Shovel", "Glinted Shovel",
     "Draconic Shovel", "Monstrous Shovel", "Starfire Shovel"
 }
-
--- ✅ Centralized shovel management to prevent conflicts
-local shovelEquipInProgress = false
-local lastEquipAttempt = 0
-local equipCooldown = 0.5 -- Prevent rapid equip/unequip cycles
 
 function hasShovelEquipped()
     local character = LocalPlayer.Character
@@ -267,27 +283,16 @@ function getShovelFromBackpack()
 end
 
 function ensureShovelEquipped()
-    -- Prevent rapid equipping attempts
-    local currentTime = tick()
-    if shovelEquipInProgress or (currentTime - lastEquipAttempt) < equipCooldown then
-        return hasShovelEquipped()
-    end
-    
     local hasEquipped, equippedShovel = hasShovelEquipped()
     if hasEquipped then return true end
     
     -- Try to equip a shovel from backpack
     local availableShovel = getShovelFromBackpack()
     if availableShovel then
-        shovelEquipInProgress = true
-        lastEquipAttempt = currentTime
-        
         pcall(function()
             Remotes:WaitForChild("Backpack_Equip"):FireServer(availableShovel)
         end)
-        
         task.wait(0.2) -- Wait for equip to complete
-        shovelEquipInProgress = false
         return hasShovelEquipped()
     end
     
@@ -391,21 +396,29 @@ function cleanupEvents()
 end
 
 -- ✅ Enhanced Toggle
-FarmSection:AddToggle("AutoDigRotate", {
-    Title = "Auto Dig (Fast)",
-    Default = false,
-    Description = "Fast auto dig with shovel detection",
+Tab:CreateToggle({
+    Name = "Auto Dig (Fast)",
+    CurrentValue = false,
+    Flag = "AutoDigRotate",
     Callback = function(Value)
         ENABLED = Value
         if Value then
             digCount = 0
             -- Ensure we have a shovel equipped when starting
             if not ensureShovelEquipped() then
-                lib:Notification('No Shovel Found', 'Please get a shovel from the shop first!', 4)
+                Rayfield:Notify({
+                    Title = "No Shovel Found",
+                    Content = "Please get a shovel from the shop first!",
+                    Duration = 4
+                })
                 return
             end
             setupEvents()
-            lib:Notification('Auto Dig Enabled', 'Fast auto dig is now active with shovel detection', 3)
+            Rayfield:Notify({
+                Title = "Auto Dig Enabled",
+                Content = "Fast auto dig is now active with shovel detection",
+                Duration = 3
+            })
         else
             cleanupEvents()
         end
@@ -425,16 +438,62 @@ getgenv().enabled = false -- default off
 local slowDigLastCheck = 0
 local slowDigCheckInterval = 2 -- Check every 2 seconds
 
--- ✅ Use centralized shovel management for slow dig
+-- ✅ Enhanced shovel detection for slow dig
+function hasShovelEquippedSlow()
+    local character = local_player.Character
+    if not character then return false end
+    
+    local tool = character:FindFirstChildOfClass("Tool")
+    if not tool then return false end
+    
+    -- Check if the equipped tool is a shovel
+    for _, shovelName in ipairs(shovelNames) do
+        if tool.Name == shovelName then
+            return true, tool
+        end
+    end
+    return false, nil
+end
+
+function getShovelFromBackpackSlow()
+    for _, tool in ipairs(Backpack:GetChildren()) do
+        if tool:IsA("Tool") then
+            for _, shovelName in ipairs(shovelNames) do
+                if tool.Name == shovelName then
+                    return tool
+                end
+            end
+        end
+    end
+    return nil
+end
+
+function ensureShovelEquippedSlow()
+    local hasEquipped, equippedShovel = hasShovelEquippedSlow()
+    if hasEquipped then return true end
+    
+    -- Try to equip a shovel from backpack
+    local availableShovel = getShovelFromBackpackSlow()
+    if availableShovel then
+        pcall(function()
+            Remotes:WaitForChild("Backpack_Equip"):FireServer(availableShovel)
+        end)
+        task.wait(0.2) -- Wait for equip to complete
+        return hasShovelEquippedSlow()
+    end
+    
+    return false
+end
+
 function get_tool()
-    local hasEquipped, tool = hasShovelEquipped()
+    local hasEquipped, tool = hasShovelEquippedSlow()
     return hasEquipped and tool or nil
 end
 
 function checkAndEquipShovel()
     local currentTime = tick()
     if currentTime - slowDigLastCheck > slowDigCheckInterval then
-        ensureShovelEquipped()
+        ensureShovelEquippedSlow()
         slowDigLastCheck = currentTime
     end
 end
@@ -487,64 +546,91 @@ local_player:GetAttributeChangedSignal("IsDigging"):Connect(function()
     end
 end)
 
--- 🧰 Enhanced 3itx Toggle
-FarmSection:AddToggle("AutoDigToggle", {
-   Title = "Auto Dig (slow)",
-   Default = false,
-   Description = "Slow auto dig with shovel detection",
+-- 🧰 Enhanced Rayfield Toggle
+local Toggle = Tab:CreateToggle({
+   Name = "Auto Dig (slow)",
+   CurrentValue = false,
+   Flag = "AutoDigToggle",
    Callback = function(Value)
        -- Set enabled on/off saat toggle ditekan
        getgenv().enabled = Value
        if Value then
            -- Check if we have a shovel equipped when starting
-           if not ensureShovelEquipped() then
-               lib:Notification('No Shovel Found', 'Please get a shovel from the shop first!', 4)
+           if not ensureShovelEquippedSlow() then
+               Rayfield:Notify({
+                   Title = "No Shovel Found",
+                   Content = "Please get a shovel from the shop first!",
+                   Duration = 4
+               })
                return
            end
-           lib:Notification('Auto Dig Enabled', 'Slow auto dig is now active with shovel detection', 3)
+           Rayfield:Notify({
+               Title = "Auto Dig Enabled",
+               Content = "Slow auto dig is now active with shovel detection",
+               Duration = 3
+           })
        end
    end,
 })
 
-local EquipSection = FarmTab:AddSection({Title = "Equip Shovel", Description = "Auto equip shovel functionality", Default = false, Locked = false})
+local Section = Tab:CreateSection("Equip Shovel")
 
-local STANDALONE_EQUIP_ENABLED = false
-local standaloneBackpackConn
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local LocalPlayer = Players.LocalPlayer
+local Backpack = LocalPlayer:WaitForChild("Backpack")
+local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 
--- ✅ Standalone equip function (uses centralized management)
-function equipAnyShovelStandalone()
-    -- Use the centralized shovel management system
-    ensureShovelEquipped()
-end
+local ENABLED = false
+local backpackConn
 
--- ✅ Unequip function
-function unequip()
-    pcall(function()
-        Remotes:WaitForChild("Backpack_Equip"):FireServer(nil)
-    end)
-end
+-- ✅ Daftar shovel
+local shovelNames = {
+    "Wooden Shovel", "Bejeweled Shovel", "Training Shovel", "Toy Shovel",
+    "Copper Shovel", "Rock Shovel", "Lucky Shovel", "Ruby Shovel",
+    "Abyssal Shovel", "Bell Shovel", "Magnet Shovel", "Jam Shovel",
+    "Candlelight Shovel", "Spore Spade", "Slayers Shovel", "Arachnid Shovel",
+    "Shortcake Shovel", "Pizza Roller", "Rock Splitter", "Archaic Shovel",
+    "Frigid Shovel", "Venomous Shovel", "Gold Digger", "Obsidian Shovel",
+    "Prismatic Shovel", "Beast Slayer", "Solstice Shovel", "Glinted Shovel",
+    "Draconic Shovel", "Monstrous Shovel", "Starfire Shovel"
+}
 
--- ✅ Toggle 3itx (Updated to prevent conflicts)
-EquipSection:AddToggle("AutoShovelSimple", {
-    Title = "Auto Equip Shovel (Standalone)",
-    Default = false,
-    Description = "Automatically equip shovels from backpack (Note: Auto dig functions also include shovel equipping)",
-    Callback = function(state)
-        STANDALONE_EQUIP_ENABLED = state
-
-        if STANDALONE_EQUIP_ENABLED then
-            -- Check if auto dig is enabled and warn about potential conflicts
-            if ENABLED or getgenv().enabled then
-                lib:Notification('Warning', 'Auto dig is already enabled. This may cause conflicts. Consider using only auto dig functions.', 5)
+-- ✅ Equip shovel dari list
+function equipAnyShovel()
+    for _, tool in ipairs(Backpack:GetChildren()) do
+        if tool:IsA("Tool") then
+            for _, name in ipairs(shovelNames) do
+                if tool.Name == name then
+                    Remotes:WaitForChild("Backpack_Equip"):FireServer(tool)
+                    return
+                end
             end
-            
-            equipAnyShovelStandalone()
+        end
+    end
+end
+
+-- ✅ Unequip
+function unequip()
+    Remotes:WaitForChild("Backpack_Equip"):FireServer(nil)
+end
+
+-- ✅ Toggle Rayfield
+Tab:CreateToggle({
+    Name = "Auto Equip Shovel",
+    CurrentValue = false,
+    Flag = "AutoShovelSimple",
+    Callback = function(state)
+        ENABLED = state
+
+        if ENABLED then
+            equipAnyShovel()
 
             -- sambungkan listener
-            standaloneBackpackConn = Backpack.ChildAdded:Connect(function(child)
-                if STANDALONE_EQUIP_ENABLED then
+            backpackConn = Backpack.ChildAdded:Connect(function(child)
+                if ENABLED then
                     task.wait(0.1)
-                    equipAnyShovelStandalone()
+                    equipAnyShovel()
                 end
             end)
 
@@ -552,16 +638,16 @@ EquipSection:AddToggle("AutoShovelSimple", {
             unequip()
 
             -- putuskan listener
-            if standaloneBackpackConn then
-                standaloneBackpackConn:Disconnect()
-                standaloneBackpackConn = nil
+            if backpackConn then
+                backpackConn:Disconnect()
+                backpackConn = nil
             end
         end
     end
 })
 
-local MechanicTab = main:AddTab("Mechanic")
-local CarsSection = MechanicTab:AddSection({Title = "Cars", Description = "Vehicle management", Default = false, Locked = false})
+local Tab = Window:CreateTab("Mecahnic", nil)
+local Section = Tab:CreateSection("Cars")
 
 -- 🟦 List mobil
 local vehicleList = {
@@ -580,24 +666,30 @@ if not VehicleSpawn then
 end
 
 -- 🟦 Buat tombol untuk setiap mobil
-local VehicleGroupButtons = CarsSection:AddGroupButton()
-
 for _, vehicleName in ipairs(vehicleList) do
-    VehicleGroupButtons:AddButton({
-        Title = "Spawn: "..vehicleName,
+    Tab:CreateButton({
+        Name = "Spawn: "..vehicleName,
         Callback = function()
             if VehicleSpawn then
                 VehicleSpawn:FireServer(vehicleName, AvaRoot, {})
-                lib:Notification('Spawn Mobil', 'Spawned: ' .. vehicleName, 3)
+                Rayfield:Notify({
+                    Title = "Spawn Mobil",
+                    Content = "Spawned: " .. vehicleName,
+                    Duration = 3
+                })
             else
-                lib:Notification('Error', 'Remote Vehicle_Spawn tidak ditemukan!', 3)
+                Rayfield:Notify({
+                    Title = "Error",
+                    Content = "Remote Vehicle_Spawn tidak ditemukan!",
+                    Duration = 3
+                })
             end
         end
     })
 end
 
-local ShopTab = main:AddTab("Shop")
-local ShopSection = ShopTab:AddSection({Title = "Shovel Shop Teleport", Description = "Teleport to shovel shops", Default = false, Locked = false})
+local Tab = Window:CreateTab("Shop", nil)
+local Section = Tab:CreateSection("Shovel Shop Teleport")
 
 -- 📦 Service
 local player = game.Players.LocalPlayer
@@ -627,7 +719,11 @@ local function tpWithNoclip(x, y, z, name)
     if hrp then
         setNoclip(true)
         hrp.CFrame = CFrame.new(x, y, z)
-        lib:Notification('Teleport', 'Teleported to '..name, 3)
+        Rayfield:Notify({
+            Title = "Teleport",
+            Content = "✅ Teleported to "..name,
+            Duration = 3
+        })
         task.delay(0.5, function()
             setNoclip(false)
         end)
@@ -666,21 +762,19 @@ local teleports = {
 }
 
 -- 📦 Tombol-tombol teleport
-local TeleportGroupButtons = ShopSection:AddGroupButton()
-
 for _, data in ipairs(teleports) do
-    TeleportGroupButtons:AddButton({
-        Title = "Teleport To "..data[1],
+    Tab:CreateButton({
+        Name = "Teleport To "..data[1],
         Callback = function()
             tpWithNoclip(data[2], data[3], data[4], data[1])
         end
     })
 end
 
-local MerchantSection = ShopTab:AddSection({Title = "Traveling Merchant", Description = "Teleport to merchant", Default = false, Locked = false})
+local Section = Tab:CreateSection("Traveling Merchant")
 
-MerchantSection:AddButton({
-   Title = "Teleport to Traveling Merchant",
+local Button = Tab:CreateButton({
+   Name = "Teleport to Traveling Merchant",
    Callback = function()
       -- 🧭 Teleport to Traveling Merchant
       local player = game:GetService("Players").LocalPlayer
@@ -707,8 +801,8 @@ MerchantSection:AddButton({
    end,
 })
 
-local MiscTab = main:AddTab("Misc/Player")
-local AntiStaffSection = MiscTab:AddSection({Title = "Anti Staff", Description = "Staff detection and actions", Default = false, Locked = false})
+local Tab = Window:CreateTab("Misc/Player", nil)
+local Section = Tab:CreateSection("Anti Staff")
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -730,7 +824,17 @@ local function handleStaff(player)
     for _, id in ipairs(staffList) do
         if player.UserId == id then
             if staffAction == "Notify" then
-                lib:Notification('⚠️ Staff Masuk Server', player.Name .. " (ID: " .. id .. ") terdeteksi sebagai staff.", 6)
+                Rayfield:Notify({
+                    Title = "⚠️ Staff Masuk Server",
+                    Content = player.Name .. " (ID: " .. id .. ") terdeteksi sebagai staff.",
+                    Duration = 6,
+                    Actions = {
+                        Accept = {
+                            Name = "OK",
+                            Callback = function() end
+                        }
+                    }
+                })
             elseif staffAction == "Kick" then
                 LocalPlayer:Kick("Staff terdeteksi di server: " .. player.Name)
             end
@@ -739,11 +843,11 @@ local function handleStaff(player)
     end
 end
 
--- 🔷 Toggle 3itx
-AntiStaffSection:AddToggle("DeteksiStaff", {
-    Title = "Anti Staff",
-    Default = true, -- ✅ auto ON
-    Description = "Detect staff joining server",
+-- 🔷 Toggle Rayfield
+Tab:CreateToggle({
+    Name = "Anti Staff",
+    CurrentValue = true, -- ✅ auto ON
+    Flag = "DeteksiStaff",
     Callback = function(Value)
         notifyStaffEnabled = Value
 
@@ -1453,8 +1557,8 @@ bossesFolder.ChildAdded:Connect(function(child)
 end)
 
 -- ✅ Anti Auto-Purchase System for Meteor Shower
-local AntiPurchaseTab = main:AddTab("Anti Auto-Purchase")
-local ProtectionSection = AntiPurchaseTab:AddSection({Title = "Protection", Description = "Prevent unwanted purchases", Default = false, Locked = false})
+local Tab = Window:CreateTab("Anti Auto-Purchase", nil)
+local Section = Tab:CreateSection("Protection")
 
 -- Global flag to prevent auto-purchases
 getgenv().preventAutoPurchase = true
@@ -1488,24 +1592,32 @@ local function blockAutoPurchase()
 end
 
 -- Toggle for auto-purchase protection
-ProtectionSection:AddToggle("BlockAutoPurchase", {
-    Title = "Block Auto Meteor Shower Purchase",
-    Default = true,
-    Description = "Prevent automatic meteor shower purchases",
+Tab:CreateToggle({
+    Name = "Block Auto Meteor Shower Purchase",
+    CurrentValue = true,
+    Flag = "BlockAutoPurchase",
     Callback = function(Value)
         getgenv().preventAutoPurchase = Value
         if Value then
             blockAutoPurchase()
-            lib:Notification('Protection Enabled', 'Automatic meteor shower purchases are now blocked', 3)
+            Rayfield:Notify({
+                Title = "Protection Enabled",
+                Content = "Automatic meteor shower purchases are now blocked",
+                Duration = 3
+            })
         else
-            lib:Notification('Protection Disabled', 'Automatic meteor shower purchases are now allowed', 3)
+            Rayfield:Notify({
+                Title = "Protection Disabled",
+                Content = "Automatic meteor shower purchases are now allowed",
+                Duration = 3
+            })
         end
     end,
 })
 
 -- Manual meteor shower purchase button (for when users actually want it)
-ProtectionSection:AddButton({
-    Title = "Manual Meteor Shower Purchase",
+Tab:CreateButton({
+    Name = "Manual Meteor Shower Purchase",
     Callback = function()
         local ReplicatedStorage = game:GetService("ReplicatedStorage")
         local DialogueRemotes = ReplicatedStorage:FindFirstChild("DialogueRemotes")
@@ -1525,7 +1637,11 @@ ProtectionSection:AddButton({
                 -- Restore protection
                 getgenv().preventAutoPurchase = oldProtection
                 
-                lib:Notification('Manual Purchase', 'Attempted manual meteor shower purchase', 3)
+                Rayfield:Notify({
+                    Title = "Manual Purchase",
+                    Content = "Attempted manual meteor shower purchase",
+                    Duration = 3
+                })
             end
         end
     end,
@@ -1533,13 +1649,3 @@ ProtectionSection:AddButton({
 
 -- Initialize the protection on script load
 blockAutoPurchase()
-
--- ✅ Config Tab for 3itx UI
-local ConfigTab = main:AddTab("Config")
-FlagsManager:SetLibrary(lib)
-FlagsManager:SetIgnoreIndexes({})
-FlagsManager:SetFolder("Config/DigGame")
-FlagsManager:InitSaveSystem(ConfigTab)
-
--- ✅ Final success notification
-lib:Notification('zzz Hub Loaded', 'Dig to Earth\'s Core script loaded successfully!', 5)
