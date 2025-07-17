@@ -2,36 +2,13 @@ if game.PlaceId ~= 126244816328678 then
     return
 end
 
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/Just3itx/3itx-UI-LIB/refs/heads/main/Lib"))() 
+local FlagsManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/Just3itx/3itx-UI-LIB/refs/heads/main/ConfigManager"))()
 
-local Window = Rayfield:CreateWindow({
-   Name = "zzz Hub | Dig Games  ",
-   Icon = 133520378097790,
-   LoadingTitle = "DiG Game Script zzz hub",
-   LoadingSubtitle = "Join zzz hub",
-   Theme = "DarkBlue",
-   DisableRayfieldPrompts = false,
-   DisableBuildWarnings = false,
-   ConfigurationSaving = {
-      Enabled = true,
-      FolderName = "zzz",
-      FileName = "zzz"
-   },
-   Discord = {
-      Enabled = true,
-      Invite = "PaRYpmJ4cG",
-      RememberJoins = true
-   },
-   KeySystem = False,
-   KeySettings = {
-      Title = "Han Key",
-      Subtitle = "Key system",
-      Note = "Mau Key? Buy Key Premium",
-      FileName = "Key",
-      SaveKey = true,
-      GrabKeyFromSite = false,
-      Key = {"Premium_jfgue786eh767et75egyf5"}
-   }
+local main = lib:Load({
+    Title = '🔥 zzz Hub | Dig Games 🔥',
+    ToggleButton = "rbxassetid://133520378097790",
+    BindGui = Enum.KeyCode.RightControl,
 })
 
 -- Buat part transparan untuk Billboard
@@ -83,29 +60,12 @@ end)
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 
-Rayfield:Notify({
-    Title = "Script Loaded",
-    Content = "Have Fun With My Script, "..player.Name..", Enjoyy To My Script",
-    Duration = 7
-})
+lib:Notification('Script Loaded', 'Have Fun With My Script, '..player.Name..', Enjoyy To My Script', 7)
 
-Rayfield:Notify({
-    Title = "Support Game",
-    Content = "DIG, Steal A Brainrot",
-    Duration = 6.5, -- durasi tampil (detik)
-    Image = 4483362458, -- optional: ID icon Roblox, bisa ganti
-    Actions = { -- optional: tombol aksi
-        Ignore = {
-            Name = "Okay",
-            Callback = function()
-                print("✅ User clicked okay on notification.")
-            end
-        },
-    },
-})
+lib:Notification('Support Game', 'DIG, Steal A Brainrot', 6.5)
 
-local Tab = Window:CreateTab("Update", nil)
-local Section = Tab:CreateSection("Changelog")
+local UpdateTab = main:AddTab("Update")
+local Section = UpdateTab:AddSection({Title = "Changelog", Description = "Recent updates", Default = false, Locked = false})
 
 -- ✅ Buat GUI basic
 local ScreenGui = Instance.new("ScreenGui")
@@ -144,10 +104,10 @@ BossStatus.Parent = Frame
 local guiVisible = true
 ScreenGui.Enabled = guiVisible
 
-Tab:CreateToggle({
-        Name = "Show Basic GUI",
-        CurrentValue = true,
-        Flag = "ShowBasicGUI",
+Section:AddToggle("ShowBasicGUI", {
+        Title = "Show Basic GUI",
+        Default = true,
+        Description = "Toggle basic GUI visibility",
         Callback = function(Value)
                 guiVisible = Value
                 ScreenGui.Enabled = guiVisible
@@ -185,46 +145,26 @@ end)
 
 warn("✅ Basic GUI loaded & boss status enabled.")
 
-Tab:CreateParagraph({
+Section:AddParagraph({
     Title = "What's New?",
-    Content = [[
-[+] Added Boss Teleport
- - Tp To Fuzzball
- - Tp To King Crab
- - Tp To Candlelight Phantom
- - Tp To Giant Spider
- - Tp To Basilisk
- - Tp To Molten Monstrosity
- - Tp To Dire Wolf
-
-- Join discord HLemon Hub
-    ]]
+    Description = "[+] Added Boss Teleport\n - Tp To Fuzzball\n - Tp To King Crab\n - Tp To Candlelight Phantom\n - Tp To Giant Spider\n - Tp To Basilisk\n - Tp To Molten Monstrosity\n - Tp To Dire Wolf\n\n- Join discord HLemon Hub"
 })
 
-local Button = Tab:CreateButton({
-   Name = "zzz hub🍋",
+Section:AddButton({
+   Title = "zzz hub🍋",
    Callback = function()
       -- Ganti link di sini dengan link Discord kamu
       setclipboard("https://discord.gg/PaRYpmJ4cG")
       
       -- Tampilkan notifikasi bahwa link sudah dicopy
-      Rayfield:Notify({
-         Title = "Copied!",
-         Content = "https://discord.gg/PaRYpmJ4cG",
-         Duration = 2,
-         Image = 4483362458,
-         Actions = {
-            Ignore = {
-               Name = "OK",
-               Callback = function() end
-            }
-         }
-      })
+      lib:Notification('Copied!', 'https://discord.gg/PaRYpmJ4cG', 2)
    end,
 })
 
-local Tab = Window:CreateTab("Farm", nil)
-local Section = Tab:CreateSection("DIG Main")
+local FarmTab = main:AddTab("Farm")
+main:SelectTab()
+
+local FarmSection = FarmTab:AddSection({Title = "DIG Main", Description = "Auto dig functionality", Default = false, Locked = false})
 
 -- ✅ Enhanced Auto Dig (Fast) Script logic
 local Players = game:GetService("Players")
@@ -252,6 +192,11 @@ local shovelNames = {
     "Prismatic Shovel", "Beast Slayer", "Solstice Shovel", "Glinted Shovel",
     "Draconic Shovel", "Monstrous Shovel", "Starfire Shovel"
 }
+
+-- ✅ Centralized shovel management to prevent conflicts
+local shovelEquipInProgress = false
+local lastEquipAttempt = 0
+local equipCooldown = 0.5 -- Prevent rapid equip/unequip cycles
 
 function hasShovelEquipped()
     local character = LocalPlayer.Character
@@ -283,16 +228,27 @@ function getShovelFromBackpack()
 end
 
 function ensureShovelEquipped()
+    -- Prevent rapid equipping attempts
+    local currentTime = tick()
+    if shovelEquipInProgress or (currentTime - lastEquipAttempt) < equipCooldown then
+        return hasShovelEquipped()
+    end
+    
     local hasEquipped, equippedShovel = hasShovelEquipped()
     if hasEquipped then return true end
     
     -- Try to equip a shovel from backpack
     local availableShovel = getShovelFromBackpack()
     if availableShovel then
+        shovelEquipInProgress = true
+        lastEquipAttempt = currentTime
+        
         pcall(function()
             Remotes:WaitForChild("Backpack_Equip"):FireServer(availableShovel)
         end)
+        
         task.wait(0.2) -- Wait for equip to complete
+        shovelEquipInProgress = false
         return hasShovelEquipped()
     end
     
@@ -323,6 +279,7 @@ function activateTool()
     if tool then
         destroyHitbox()
         tool:Activate()
+        updateDigActivity() -- Update dig activity tracking for fast dig
     end
 end
 
@@ -342,8 +299,11 @@ function setupEvents()
     end))
 
     table.insert(connections, LocalPlayer:GetAttributeChangedSignal("IsDigging"):Connect(function()
-        if ENABLED and not LocalPlayer:GetAttribute("IsDigging") then
-            activateTool()
+        if ENABLED then
+            updateDigActivity() -- Update dig activity tracking for fast dig
+            if not LocalPlayer:GetAttribute("IsDigging") then
+                activateTool()
+            end
         end
     end))
 
@@ -396,29 +356,22 @@ function cleanupEvents()
 end
 
 -- ✅ Enhanced Toggle
-Tab:CreateToggle({
-    Name = "Auto Dig (Fast)",
-    CurrentValue = false,
-    Flag = "AutoDigRotate",
+FarmSection:AddToggle("AutoDigRotate", {
+    Title = "Auto Dig (Fast)",
+    Default = false,
+    Description = "Fast auto dig with shovel detection",
     Callback = function(Value)
         ENABLED = Value
         if Value then
             digCount = 0
             -- Ensure we have a shovel equipped when starting
             if not ensureShovelEquipped() then
-                Rayfield:Notify({
-                    Title = "No Shovel Found",
-                    Content = "Please get a shovel from the shop first!",
-                    Duration = 4
-                })
+                lib:Notification('No Shovel Found', 'Please get a shovel from the shop first!', 4)
                 return
             end
+            updateDigActivity() -- Initialize dig activity tracking for fast dig
             setupEvents()
-            Rayfield:Notify({
-                Title = "Auto Dig Enabled",
-                Content = "Fast auto dig is now active with shovel detection",
-                Duration = 3
-            })
+            lib:Notification('Auto Dig Enabled', 'Fast auto dig is now active with shovel detection', 3)
         else
             cleanupEvents()
         end
@@ -438,63 +391,70 @@ getgenv().enabled = false -- default off
 local slowDigLastCheck = 0
 local slowDigCheckInterval = 2 -- Check every 2 seconds
 
--- ✅ Enhanced shovel detection for slow dig
-function hasShovelEquippedSlow()
-    local character = local_player.Character
-    if not character then return false end
-    
-    local tool = character:FindFirstChildOfClass("Tool")
-    if not tool then return false end
-    
-    -- Check if the equipped tool is a shovel
-    for _, shovelName in ipairs(shovelNames) do
-        if tool.Name == shovelName then
-            return true, tool
-        end
-    end
-    return false, nil
-end
+-- ✅ Minigame Detection System
+local minigameDetectionEnabled = false
+local lastDigTime = 0
+local digActivityTimeout = 5 -- Timeout in seconds to detect when digging stops unexpectedly
+local minigameCheckInterval = 1 -- Check every second
+local wasDiggingBefore = false
+local minigameConnection
 
-function getShovelFromBackpackSlow()
-    for _, tool in ipairs(Backpack:GetChildren()) do
-        if tool:IsA("Tool") then
-            for _, shovelName in ipairs(shovelNames) do
-                if tool.Name == shovelName then
-                    return tool
-                end
-            end
-        end
-    end
-    return nil
-end
-
-function ensureShovelEquippedSlow()
-    local hasEquipped, equippedShovel = hasShovelEquippedSlow()
-    if hasEquipped then return true end
-    
-    -- Try to equip a shovel from backpack
-    local availableShovel = getShovelFromBackpackSlow()
-    if availableShovel then
-        pcall(function()
-            Remotes:WaitForChild("Backpack_Equip"):FireServer(availableShovel)
-        end)
-        task.wait(0.2) -- Wait for equip to complete
-        return hasShovelEquippedSlow()
-    end
-    
-    return false
-end
-
+-- ✅ Use centralized shovel management for slow dig
 function get_tool()
-    local hasEquipped, tool = hasShovelEquippedSlow()
+    local hasEquipped, tool = hasShovelEquipped()
     return hasEquipped and tool or nil
 end
 
 function checkAndEquipShovel()
     local currentTime = tick()
     if currentTime - slowDigLastCheck > slowDigCheckInterval then
-        ensureShovelEquippedSlow()
+        ensureShovelEquipped()
         slowDigLastCheck = currentTime
+    end
+end
+
+-- ✅ Minigame Detection Functions
+function updateDigActivity()
+    lastDigTime = tick()
+end
+
+function startMinigameDetection()
+    if minigameConnection then
+        minigameConnection:Disconnect()
+    end
+    
+    minigameConnection = RunService.Heartbeat:Connect(function()
+        if not minigameDetectionEnabled then return end
+        
+        local currentTime = tick()
+        local isCurrentlyDigging = local_player:GetAttribute("IsDigging")
+        
+        -- Check if we were digging before but now we're not, and it's been too long
+        if wasDiggingBefore and not isCurrentlyDigging and (currentTime - lastDigTime) > digActivityTimeout then
+            -- Check if we had a shovel equipped before the dig stopped
+            local hasEquipped, tool = hasShovelEquipped()
+            if hasEquipped then
+                -- Only re-equip if we had a shovel before - this prevents unnecessary equipping
+                lib:Notification('Minigame Detection', 'Dig stopped unexpectedly, re-equipping shovel...', 3)
+                ensureShovelEquipped()
+                updateDigActivity() -- Reset the timer
+            end
+        end
+        
+        -- Update the tracking state
+        wasDiggingBefore = isCurrentlyDigging
+        
+        -- Update dig activity when we're actively digging
+        if isCurrentlyDigging then
+            updateDigActivity()
+        end
+    end)
+end
+
+function stopMinigameDetection()
+    if minigameConnection then
+        minigameConnection:Disconnect()
+        minigameConnection = nil
     end
 end
 
@@ -516,10 +476,12 @@ end)
 
 local_player.PlayerGui.ChildAdded:Connect(function(v)
     if enabled and v.Name == "Dig" then
+        updateDigActivity() -- Update dig activity when minigame starts
         local strong_bar = v:FindFirstChild("Safezone"):FindFirstChild("Holder"):FindFirstChild("Area_Strong")
         local player_bar = v:FindFirstChild("Safezone"):FindFirstChild("Holder"):FindFirstChild("PlayerBar")
         player_bar:GetPropertyChangedSignal("Position"):Connect(function()
             if not enabled then return end
+            updateDigActivity() -- Update dig activity during minigame
             if math.abs(player_bar.Position.X.Scale - strong_bar.Position.X.Scale) <= 0.04 then
                 checkAndEquipShovel()
                 local tool = get_tool()
@@ -534,6 +496,7 @@ end)
 
 local_player:GetAttributeChangedSignal("IsDigging"):Connect(function()
     if not enabled then return end
+    updateDigActivity() -- Update dig activity tracking
     if not local_player:GetAttribute("IsDigging") then
         if holes:FindFirstChild(local_player.Name.."_Crater_Hitbox") then
             holes[local_player.Name.."_Crater_Hitbox"]:Destroy()
@@ -546,91 +509,95 @@ local_player:GetAttributeChangedSignal("IsDigging"):Connect(function()
     end
 end)
 
--- 🧰 Enhanced Rayfield Toggle
-local Toggle = Tab:CreateToggle({
-   Name = "Auto Dig (slow)",
-   CurrentValue = false,
-   Flag = "AutoDigToggle",
+-- 🧰 Enhanced 3itx Toggle
+FarmSection:AddToggle("AutoDigToggle", {
+   Title = "Auto Dig (slow)",
+   Default = false,
+   Description = "Slow auto dig with shovel detection",
    Callback = function(Value)
        -- Set enabled on/off saat toggle ditekan
        getgenv().enabled = Value
        if Value then
            -- Check if we have a shovel equipped when starting
-           if not ensureShovelEquippedSlow() then
-               Rayfield:Notify({
-                   Title = "No Shovel Found",
-                   Content = "Please get a shovel from the shop first!",
-                   Duration = 4
-               })
+           if not ensureShovelEquipped() then
+               lib:Notification('No Shovel Found', 'Please get a shovel from the shop first!', 4)
                return
            end
-           Rayfield:Notify({
-               Title = "Auto Dig Enabled",
-               Content = "Slow auto dig is now active with shovel detection",
-               Duration = 3
-           })
+           updateDigActivity() -- Initialize dig activity tracking
+           lib:Notification('Auto Dig Enabled', 'Slow auto dig is now active with shovel detection', 3)
        end
    end,
 })
 
-local Section = Tab:CreateSection("Equip Shovel")
+-- ✅ Minigame Detection Toggle
+FarmSection:AddToggle("MinigameDetection", {
+   Title = "Minigame Detection",
+   Default = false,
+   Description = "Auto re-equip shovel when dig stops unexpectedly (server bug protection)",
+   Callback = function(Value)
+       minigameDetectionEnabled = Value
+       if Value then
+           startMinigameDetection()
+           lib:Notification('Minigame Detection Enabled', 'Will auto re-equip shovel when dig stops unexpectedly', 3)
+       else
+           stopMinigameDetection()
+           lib:Notification('Minigame Detection Disabled', 'Minigame detection has been turned off', 3)
+       end
+   end,
+})
 
-local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local LocalPlayer = Players.LocalPlayer
-local Backpack = LocalPlayer:WaitForChild("Backpack")
-local Remotes = ReplicatedStorage:WaitForChild("Remotes")
+-- ✅ Minigame Detection Timeout Slider
+FarmSection:AddSlider("MinigameTimeout", {
+   Title = "Detection Timeout (seconds)",
+   Default = 5,
+   Min = 2,
+   Max = 15,
+   Increment = 1,
+   Callback = function(Value)
+       digActivityTimeout = Value
+       lib:Notification('Timeout Updated', 'Minigame detection timeout set to ' .. Value .. ' seconds', 2)
+   end,
+})
 
-local ENABLED = false
-local backpackConn
+local EquipSection = FarmTab:AddSection({Title = "Equip Shovel", Description = "Auto equip shovel functionality", Default = false, Locked = false})
 
--- ✅ Daftar shovel
-local shovelNames = {
-    "Wooden Shovel", "Bejeweled Shovel", "Training Shovel", "Toy Shovel",
-    "Copper Shovel", "Rock Shovel", "Lucky Shovel", "Ruby Shovel",
-    "Abyssal Shovel", "Bell Shovel", "Magnet Shovel", "Jam Shovel",
-    "Candlelight Shovel", "Spore Spade", "Slayers Shovel", "Arachnid Shovel",
-    "Shortcake Shovel", "Pizza Roller", "Rock Splitter", "Archaic Shovel",
-    "Frigid Shovel", "Venomous Shovel", "Gold Digger", "Obsidian Shovel",
-    "Prismatic Shovel", "Beast Slayer", "Solstice Shovel", "Glinted Shovel",
-    "Draconic Shovel", "Monstrous Shovel", "Starfire Shovel"
-}
+local STANDALONE_EQUIP_ENABLED = false
+local standaloneBackpackConn
 
--- ✅ Equip shovel dari list
-function equipAnyShovel()
-    for _, tool in ipairs(Backpack:GetChildren()) do
-        if tool:IsA("Tool") then
-            for _, name in ipairs(shovelNames) do
-                if tool.Name == name then
-                    Remotes:WaitForChild("Backpack_Equip"):FireServer(tool)
-                    return
-                end
-            end
-        end
-    end
+-- ✅ Standalone equip function (uses centralized management)
+function equipAnyShovelStandalone()
+    -- Use the centralized shovel management system
+    ensureShovelEquipped()
 end
 
--- ✅ Unequip
+-- ✅ Unequip function
 function unequip()
-    Remotes:WaitForChild("Backpack_Equip"):FireServer(nil)
+    pcall(function()
+        Remotes:WaitForChild("Backpack_Equip"):FireServer(nil)
+    end)
 end
 
--- ✅ Toggle Rayfield
-Tab:CreateToggle({
-    Name = "Auto Equip Shovel",
-    CurrentValue = false,
-    Flag = "AutoShovelSimple",
+-- ✅ Toggle 3itx (Updated to prevent conflicts)
+EquipSection:AddToggle("AutoShovelSimple", {
+    Title = "Auto Equip Shovel (Standalone)",
+    Default = false,
+    Description = "Automatically equip shovels from backpack (Note: Auto dig functions also include shovel equipping)",
     Callback = function(state)
-        ENABLED = state
+        STANDALONE_EQUIP_ENABLED = state
 
-        if ENABLED then
-            equipAnyShovel()
+        if STANDALONE_EQUIP_ENABLED then
+            -- Check if auto dig is enabled and warn about potential conflicts
+            if ENABLED or getgenv().enabled then
+                lib:Notification('Warning', 'Auto dig is already enabled. This may cause conflicts. Consider using only auto dig functions.', 5)
+            end
+            
+            equipAnyShovelStandalone()
 
             -- sambungkan listener
-            backpackConn = Backpack.ChildAdded:Connect(function(child)
-                if ENABLED then
+            standaloneBackpackConn = Backpack.ChildAdded:Connect(function(child)
+                if STANDALONE_EQUIP_ENABLED then
                     task.wait(0.1)
-                    equipAnyShovel()
+                    equipAnyShovelStandalone()
                 end
             end)
 
@@ -638,16 +605,16 @@ Tab:CreateToggle({
             unequip()
 
             -- putuskan listener
-            if backpackConn then
-                backpackConn:Disconnect()
-                backpackConn = nil
+            if standaloneBackpackConn then
+                standaloneBackpackConn:Disconnect()
+                standaloneBackpackConn = nil
             end
         end
     end
 })
 
-local Tab = Window:CreateTab("Mecahnic", nil)
-local Section = Tab:CreateSection("Cars")
+local MechanicTab = main:AddTab("Mechanic")
+local CarsSection = MechanicTab:AddSection({Title = "Cars", Description = "Vehicle management", Default = false, Locked = false})
 
 -- 🟦 List mobil
 local vehicleList = {
@@ -666,30 +633,24 @@ if not VehicleSpawn then
 end
 
 -- 🟦 Buat tombol untuk setiap mobil
+local VehicleGroupButtons = CarsSection:AddGroupButton()
+
 for _, vehicleName in ipairs(vehicleList) do
-    Tab:CreateButton({
-        Name = "Spawn: "..vehicleName,
+    VehicleGroupButtons:AddButton({
+        Title = "Spawn: "..vehicleName,
         Callback = function()
             if VehicleSpawn then
                 VehicleSpawn:FireServer(vehicleName, AvaRoot, {})
-                Rayfield:Notify({
-                    Title = "Spawn Mobil",
-                    Content = "Spawned: " .. vehicleName,
-                    Duration = 3
-                })
+                lib:Notification('Spawn Mobil', 'Spawned: ' .. vehicleName, 3)
             else
-                Rayfield:Notify({
-                    Title = "Error",
-                    Content = "Remote Vehicle_Spawn tidak ditemukan!",
-                    Duration = 3
-                })
+                lib:Notification('Error', 'Remote Vehicle_Spawn tidak ditemukan!', 3)
             end
         end
     })
 end
 
-local Tab = Window:CreateTab("Shop", nil)
-local Section = Tab:CreateSection("Shovel Shop Teleport")
+local ShopTab = main:AddTab("Shop")
+local ShopSection = ShopTab:AddSection({Title = "Shovel Shop Teleport", Description = "Teleport to shovel shops", Default = false, Locked = false})
 
 -- 📦 Service
 local player = game.Players.LocalPlayer
@@ -719,11 +680,7 @@ local function tpWithNoclip(x, y, z, name)
     if hrp then
         setNoclip(true)
         hrp.CFrame = CFrame.new(x, y, z)
-        Rayfield:Notify({
-            Title = "Teleport",
-            Content = "✅ Teleported to "..name,
-            Duration = 3
-        })
+        lib:Notification('Teleport', 'Teleported to '..name, 3)
         task.delay(0.5, function()
             setNoclip(false)
         end)
@@ -762,19 +719,21 @@ local teleports = {
 }
 
 -- 📦 Tombol-tombol teleport
+local TeleportGroupButtons = ShopSection:AddGroupButton()
+
 for _, data in ipairs(teleports) do
-    Tab:CreateButton({
-        Name = "Teleport To "..data[1],
+    TeleportGroupButtons:AddButton({
+        Title = "Teleport To "..data[1],
         Callback = function()
             tpWithNoclip(data[2], data[3], data[4], data[1])
         end
     })
 end
 
-local Section = Tab:CreateSection("Traveling Merchant")
+local MerchantSection = ShopTab:AddSection({Title = "Traveling Merchant", Description = "Teleport to merchant", Default = false, Locked = false})
 
-local Button = Tab:CreateButton({
-   Name = "Teleport to Traveling Merchant",
+MerchantSection:AddButton({
+   Title = "Teleport to Traveling Merchant",
    Callback = function()
       -- 🧭 Teleport to Traveling Merchant
       local player = game:GetService("Players").LocalPlayer
@@ -801,8 +760,8 @@ local Button = Tab:CreateButton({
    end,
 })
 
-local Tab = Window:CreateTab("Misc/Player", nil)
-local Section = Tab:CreateSection("Anti Staff")
+local MiscTab = main:AddTab("Misc/Player")
+local AntiStaffSection = MiscTab:AddSection({Title = "Anti Staff", Description = "Staff detection and actions", Default = false, Locked = false})
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
@@ -824,17 +783,7 @@ local function handleStaff(player)
     for _, id in ipairs(staffList) do
         if player.UserId == id then
             if staffAction == "Notify" then
-                Rayfield:Notify({
-                    Title = "⚠️ Staff Masuk Server",
-                    Content = player.Name .. " (ID: " .. id .. ") terdeteksi sebagai staff.",
-                    Duration = 6,
-                    Actions = {
-                        Accept = {
-                            Name = "OK",
-                            Callback = function() end
-                        }
-                    }
-                })
+                lib:Notification('⚠️ Staff Masuk Server', player.Name .. " (ID: " .. id .. ") terdeteksi sebagai staff.", 6)
             elseif staffAction == "Kick" then
                 LocalPlayer:Kick("Staff terdeteksi di server: " .. player.Name)
             end
@@ -843,11 +792,11 @@ local function handleStaff(player)
     end
 end
 
--- 🔷 Toggle Rayfield
-Tab:CreateToggle({
-    Name = "Anti Staff",
-    CurrentValue = true, -- ✅ auto ON
-    Flag = "DeteksiStaff",
+-- 🔷 Toggle 3itx
+AntiStaffSection:AddToggle("DeteksiStaff", {
+    Title = "Anti Staff",
+    Default = true, -- ✅ auto ON
+    Description = "Detect staff joining server",
     Callback = function(Value)
         notifyStaffEnabled = Value
 
@@ -860,12 +809,14 @@ Tab:CreateToggle({
     end,
 })
 
--- 🔷 Select Rayfield
-Tab:CreateDropdown({
-    Name = "Choose Staff Method",
+-- 🔷 Choose Staff Method
+AntiStaffSection:AddDropdown("ChooseStaff", {
+    Title = "Choose Staff Method",
+    Description = "Select what to do when staff is detected",
     Options = {"Notify", "Kick"},
-    CurrentOption = "Notify",
-    Flag = "ChooseStaff",
+    Default = "Notify",
+    PlaceHolder = "Select Method",
+    Multiple = false,
     Callback = function(Option)
         staffAction = Option
     end,
@@ -879,7 +830,7 @@ for _, p in ipairs(Players:GetPlayers()) do
     handleStaff(p)
 end
 
-local Section = Tab:CreateSection("Setting")
+local SettingSection = MiscTab:AddSection({Title = "Setting", Description = "General settings", Default = false, Locked = false})
 
 local Players = game:GetService("Players")
 
@@ -936,26 +887,19 @@ LocalPlayer.CharacterAdded:Connect(function(char)
     end
 end)
 
-Tab:CreateToggle({
-    Name = "God Mode",
-    CurrentValue = false,
+SettingSection:AddToggle("GodMode", {
+    Title = "God Mode",
+    Default = false,
+    Description = "Enable god mode",
     Callback = function(state)
         godModeEnabled = state
 
         if state then
             setGodMode(true)
-            Rayfield:Notify({
-                Title = "God Mode",
-                Content = "God Mode Aktif",
-                Duration = 3
-            })
+            lib:Notification('God Mode', 'God Mode Aktif', 3)
         else
             setGodMode(false)
-            Rayfield:Notify({
-                Title = "God Mode",
-                Content = "God Mode Nonaktif",
-                Duration = 3
-            })
+            lib:Notification('God Mode', 'God Mode Nonaktif', 3)
         end
     end
 })
@@ -973,24 +917,17 @@ end)
 
 local noclipEnabled = false
 
-Tab:CreateToggle({
-    Name = "Noclip",
-    CurrentValue = false,
+SettingSection:AddToggle("Noclip", {
+    Title = "Noclip",
+    Default = false,
+    Description = "Enable noclip",
     Callback = function(state)
         noclipEnabled = state
 
         if state then
-            Rayfield:Notify({
-                Title = "Noclip",
-                Content = "Noclip Diaktifkan.",
-                Duration = 3
-            })
+            lib:Notification('Noclip', 'Noclip Diaktifkan.', 3)
         else
-            Rayfield:Notify({
-                Title = "Noclip",
-                Content = "Noclip Dimatikan.",
-                Duration = 3
-            })
+            lib:Notification('Noclip', 'Noclip Dimatikan.', 3)
             -- pastikan balik normal
             if Character then
                 for _, part in ipairs(Character:GetDescendants()) do
@@ -1033,46 +970,44 @@ local walkSpeedValue = 16
 local jumpPowerValue = 50
 
 -- WalkSpeed Toggle
-Tab:CreateToggle({
-    Name = "WalkSpeed",
-    CurrentValue = false,
-    Flag = "WalkSpeedToggle",
+SettingSection:AddToggle("WalkSpeed", {
+    Title = "WalkSpeed",
+    Default = false,
+    Description = "Enable custom walk speed",
     Callback = function(Value)
         getgenv().WalkSpeedEnabled = Value
     end,
 })
 
 -- WalkSpeed Slider
-Tab:CreateSlider({
-    Name = "WalkSpeed Value",
-    Range = {16, 200},
+SettingSection:AddSlider("WalkSpeedValue", {
+    Title = "WalkSpeed Value",
+    Default = 16,
+    Min = 16,
+    Max = 200,
     Increment = 1,
-    Suffix = "Speed",
-    CurrentValue = 16,
-    Flag = "WalkSpeedSlider",
     Callback = function(Value)
         walkSpeedValue = Value
     end,
 })
 
 -- JumpPower Toggle
-Tab:CreateToggle({
-    Name = "JumpPower",
-    CurrentValue = false,
-    Flag = "JumpPowerToggle",
+SettingSection:AddToggle("JumpPower", {
+    Title = "JumpPower",
+    Default = false,
+    Description = "Enable custom jump power",
     Callback = function(Value)
         getgenv().JumpPowerEnabled = Value
     end,
 })
 
 -- JumpPower Slider
-Tab:CreateSlider({
-    Name = "JumpPower Value",
-    Range = {50, 200},
+SettingSection:AddSlider("JumpPowerValue", {
+    Title = "JumpPower Value",
+    Default = 50,
+    Min = 50,
+    Max = 200,
     Increment = 1,
-    Suffix = "Power",
-    CurrentValue = 50,
-    Flag = "JumpPowerSlider",
     Callback = function(Value)
         jumpPowerValue = Value
     end,
@@ -1105,8 +1040,8 @@ end)
 local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
 
-Tab:CreateButton({
-    Name = "Boost FPS",
+SettingSection:AddButton({
+    Title = "Boost FPS",
     Callback = function()
         Lighting.GlobalShadows = false
         Lighting.FogEnd = 1e10
@@ -1126,16 +1061,12 @@ Tab:CreateButton({
             end
         end
 
-        Rayfield:Notify({
-            Title = "Boost FPS",
-            Content = "Boost FPS diaktifkan.",
-            Duration = 3
-        })
+        lib:Notification('Boost FPS', 'Boost FPS diaktifkan.', 3)
     end
 })
 
-local Tab = Window:CreateTab("Inventory", nil)
-local Section = Tab:CreateSection("Sell")
+local InventoryTab = main:AddTab("Inventory")
+local SellSection = InventoryTab:AddSection({Title = "Sell", Description = "Auto sell items", Default = false, Locked = false})
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rocky = workspace:WaitForChild("World"):WaitForChild("NPCs"):WaitForChild("Rocky")
@@ -1145,23 +1076,22 @@ getgenv().autoSell = false
 getgenv().sellDelay = 3 -- default 3 detik
 
 -- Toggle Auto Sell
-Tab:CreateToggle({
-   Name = "Auto Sell",
-   CurrentValue = false,
-   Flag = "Toggle_AutoSell",
+SellSection:AddToggle("AutoSell", {
+   Title = "Auto Sell",
+   Default = false,
+   Description = "Enable auto sell items",
    Callback = function(Value)
       getgenv().autoSell = Value
    end,
 })
 
 -- Slider untuk atur delay
-Tab:CreateSlider({
-   Name = "Auto Sell Delay (detik)",
-   Range = {1, 60},
+SellSection:AddSlider("AutoSellDelay", {
+   Title = "Auto Sell Delay (detik)",
+   Default = 3,
+   Min = 1,
+   Max = 60,
    Increment = 1,
-   Suffix = "s",
-   CurrentValue = 3,
-   Flag = "Slider_AutoSellDelay",
    Callback = function(Value)
       getgenv().sellDelay = Value
    end,
@@ -1177,8 +1107,8 @@ task.spawn(function()
         end
 end)
 
-local Tab = Window:CreateTab("Magnets", nil)
-local Section = Tab:CreateSection("Equip Magnets")
+local MagnetTab = main:AddTab("Magnets")
+local MagnetSection = MagnetTab:AddSection({Title = "Equip Magnets", Description = "Equip different magnets", Default = false, Locked = false})
 
 local player = game.Players.LocalPlayer
 local playerName = player.Name
@@ -1200,26 +1130,30 @@ local function equipMagnet(magnetName)
 end
 
 -- Tambahkan tombol-tombol ke Tab yang sudah ada
-Tab:CreateButton({ Name = "Prismatic Magnet", Callback = function() equipMagnet("Prismatic Magnet") end })
-Tab:CreateButton({ Name = "Crimsonsteel Magnet", Callback = function() equipMagnet("Crimsonsteel Magnet") end })
-Tab:CreateButton({ Name = "Magic Magnet", Callback = function() equipMagnet("Magic Magnet") end })
-Tab:CreateButton({ Name = "Golden Horseshoe", Callback = function() equipMagnet("Golden Horseshoe") end })
-Tab:CreateButton({ Name = "Legendary Magnet", Callback = function() equipMagnet("Legendary Magnet") end })
-Tab:CreateButton({ Name = "Fossil Brush", Callback = function() equipMagnet("Fossil Brush") end })
-Tab:CreateButton({ Name = "Fortuned Magnet", Callback = function() equipMagnet("Fortuned Magnet") end })
-Tab:CreateButton({ Name = "Brass Magnet", Callback = function() equipMagnet("Brass Magnet") end })
-Tab:CreateButton({ Name = "Ghost Magnet", Callback = function() equipMagnet("Ghost Magnet") end })
-Tab:CreateButton({ Name = "Odd Mushroom", Callback = function() equipMagnet("Odd Mushroom") end })
-Tab:CreateButton({ Name = "Green Magnet", Callback = function() equipMagnet("Green Magnet") end })
-Tab:CreateButton({ Name = "Light Bulb", Callback = function() equipMagnet("Light Bulb") end })
-Tab:CreateButton({ Name = "Red Magnet", Callback = function() equipMagnet("Red Magnet") end })
-Tab:CreateButton({ Name = "Basic Magnet", Callback = function() equipMagnet("Basic Magnet") end })
+local MagnetButtons = MagnetSection:AddGroupButton()
 
-local Tab = Window:CreateTab("Teleport Bosses", nil)
-local Section = Tab:CreateSection("Boss")
+MagnetButtons:AddButton({Title = "Prismatic Magnet", Callback = function() equipMagnet("Prismatic Magnet") end})
+MagnetButtons:AddButton({Title = "Crimsonsteel Magnet", Callback = function() equipMagnet("Crimsonsteel Magnet") end})
+MagnetButtons:AddButton({Title = "Magic Magnet", Callback = function() equipMagnet("Magic Magnet") end})
+MagnetButtons:AddButton({Title = "Golden Horseshoe", Callback = function() equipMagnet("Golden Horseshoe") end})
+MagnetButtons:AddButton({Title = "Legendary Magnet", Callback = function() equipMagnet("Legendary Magnet") end})
+MagnetButtons:AddButton({Title = "Fossil Brush", Callback = function() equipMagnet("Fossil Brush") end})
+MagnetButtons:AddButton({Title = "Fortuned Magnet", Callback = function() equipMagnet("Fortuned Magnet") end})
+MagnetButtons:AddButton({Title = "Brass Magnet", Callback = function() equipMagnet("Brass Magnet") end})
+MagnetButtons:AddButton({Title = "Ghost Magnet", Callback = function() equipMagnet("Ghost Magnet") end})
+MagnetButtons:AddButton({Title = "Odd Mushroom", Callback = function() equipMagnet("Odd Mushroom") end})
+MagnetButtons:AddButton({Title = "Green Magnet", Callback = function() equipMagnet("Green Magnet") end})
+MagnetButtons:AddButton({Title = "Light Bulb", Callback = function() equipMagnet("Light Bulb") end})
+MagnetButtons:AddButton({Title = "Red Magnet", Callback = function() equipMagnet("Red Magnet") end})
+MagnetButtons:AddButton({Title = "Basic Magnet", Callback = function() equipMagnet("Basic Magnet") end})
 
-local Button = Tab:CreateButton({
-    Name = "Teleport to King Crab",
+local TeleportTab = main:AddTab("Teleport Bosses")
+local BossSection = TeleportTab:AddSection({Title = "Boss", Description = "Teleport to boss locations", Default = false, Locked = false})
+
+local BossButtons = BossSection:AddGroupButton()
+
+BossButtons:AddButton({
+    Title = "Teleport to King Crab",
     Callback = function()
         -- 🦀 Teleport ke King Crab
         local player = game:GetService("Players").LocalPlayer
@@ -1246,8 +1180,8 @@ local Button = Tab:CreateButton({
     end,
 })
 
-local Button = Tab:CreateButton({
-   Name = "Teleport to Candlelight Phantom",
+BossButtons:AddButton({
+   Title = "Teleport to Candlelight Phantom",
    Callback = function()
       -- 🧭 Teleport to Candlelight Phantom
       local player = game:GetService("Players").LocalPlayer
@@ -1273,8 +1207,8 @@ local Button = Tab:CreateButton({
    end,
 })
 
-Tab:CreateButton({
-    Name = "Teleport to Molten Monstrosity",
+BossButtons:AddButton({
+    Title = "Teleport to Molten Monstrosity",
     Callback = function()
         local player = game.Players.LocalPlayer
         local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
@@ -1290,8 +1224,8 @@ Tab:CreateButton({
     end
 })
 
-local Button = Tab:CreateButton({
-    Name = "Teleport to Basilisk",
+BossButtons:AddButton({
+    Title = "Teleport to Basilisk",
     Callback = function()
         -- 🐍 Teleport ke Basilisk
         local player = game:GetService("Players").LocalPlayer
@@ -1318,8 +1252,8 @@ local Button = Tab:CreateButton({
     end,
 })
 
-local Button = Tab:CreateButton({
-    Name = "Teleport to Dire Wolf",
+BossButtons:AddButton({
+    Title = "Teleport to Dire Wolf",
     Callback = function()
         -- 🐺 Teleport ke Dire Wolf
         local player = game:GetService("Players").LocalPlayer
@@ -1346,8 +1280,8 @@ local Button = Tab:CreateButton({
     end,
 })
 
-local Button = Tab:CreateButton({
-    Name = "Teleport to Fuzzball",
+BossButtons:AddButton({
+    Title = "Teleport to Fuzzball",
     Callback = function()
         -- 🟢 Teleport ke Fuzzball
         local player = game:GetService("Players").LocalPlayer
@@ -1373,8 +1307,8 @@ local Button = Tab:CreateButton({
     end,
 })
 
-local Button = Tab:CreateButton({
-    Name = "Teleport to Giant Spider",
+BossButtons:AddButton({
+    Title = "Teleport to Giant Spider",
     Callback = function()
         -- 🕷️ Teleport ke Giant Spider
         local player = game:GetService("Players").LocalPlayer
@@ -1400,8 +1334,8 @@ local Button = Tab:CreateButton({
     end,
 })
 
-local Tab = Window:CreateTab("Teleport Npc", nil)
-local Section = Tab:CreateSection("Npc")
+local NpcTab = main:AddTab("Teleport Npc")
+local NpcSection = NpcTab:AddSection({Title = "Npc", Description = "Teleport to NPCs", Default = false, Locked = false})
 
 local player = game.Players.LocalPlayer
 local npcsFolder = workspace:WaitForChild("World"):WaitForChild("NPCs")
@@ -1436,20 +1370,23 @@ local npcNames = {
 }
 
 -- Buat tombol per NPC (masing-masing sendiri)
+local NPCButtons = NpcSection:AddGroupButton()
 for _, npcName in ipairs(npcNames) do
-    Tab:CreateButton({
-        Name = "Teleport To NPC "..npcName,
+    NPCButtons:AddButton({
+        Title = "Teleport To NPC "..npcName,
         Callback = function()
             teleportToNPC(npcName)
         end
     })
 end
 
-local Tab = Window:CreateTab("Teleport Island", nil)
-local Section = Tab:CreateSection("Island")
+local IslandTab = main:AddTab("Teleport Island")
+local IslandSection = IslandTab:AddSection({Title = "Island", Description = "Teleport to islands", Default = false, Locked = false})
 
-Tab:CreateButton({
-    Name = "Teleport to Fox Town",
+local IslandButtons = IslandSection:AddGroupButton()
+
+IslandButtons:AddButton({
+    Title = "Teleport to Fox Town",
     Callback = function()
         local player = game.Players.LocalPlayer
         local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
@@ -1461,8 +1398,8 @@ Tab:CreateButton({
     end
 })
 
-Tab:CreateButton({
-    Name = "Teleport to Verdant Vale",
+IslandButtons:AddButton({
+    Title = "Teleport to Verdant Vale",
     Callback = function()
         local player = game.Players.LocalPlayer
         local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
@@ -1479,8 +1416,8 @@ Tab:CreateButton({
     end
 })
 
-Tab:CreateButton({
-    Name = "Teleport to Mount Cinder",
+IslandButtons:AddButton({
+    Title = "Teleport to Mount Cinder",
     Callback = function()
         local player = game.Players.LocalPlayer
         local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
@@ -1497,8 +1434,8 @@ Tab:CreateButton({
     end
 })
 
-Tab:CreateButton({
-    Name = "Teleport to Rooftop Woodlands",
+IslandButtons:AddButton({
+    Title = "Teleport to Rooftop Woodlands",
     Callback = function()
         local player = game.Players.LocalPlayer
         local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
@@ -1515,7 +1452,7 @@ Tab:CreateButton({
     end
 })
 
--- pastikan Rayfield & Window sudah siap sebelum ini
+-- Boss notification system
 
 local bossesFolder = workspace.World:WaitForChild("NPCs")
 
@@ -1529,17 +1466,7 @@ local bossesToWatch = {
 }
 
 local function notifyBoss(name)
-    Rayfield:Notify({
-        Title = "Boss Spawned!",
-        Content = name .. " has spawned!",
-        Duration = 5,
-        Actions = {
-            OK = {
-                Name = "OK",
-                Callback = function() end
-            }
-        }
-    })
+    lib:Notification('Boss Spawned!', name .. ' has spawned!', 5)
 end
 
 -- cek boss yang sudah ada saat join
@@ -1557,8 +1484,8 @@ bossesFolder.ChildAdded:Connect(function(child)
 end)
 
 -- ✅ Anti Auto-Purchase System for Meteor Shower
-local Tab = Window:CreateTab("Anti Auto-Purchase", nil)
-local Section = Tab:CreateSection("Protection")
+local AntiPurchaseTab = main:AddTab("Anti Auto-Purchase")
+local ProtectionSection = AntiPurchaseTab:AddSection({Title = "Protection", Description = "Prevent unwanted purchases", Default = false, Locked = false})
 
 -- Global flag to prevent auto-purchases
 getgenv().preventAutoPurchase = true
@@ -1592,32 +1519,24 @@ local function blockAutoPurchase()
 end
 
 -- Toggle for auto-purchase protection
-Tab:CreateToggle({
-    Name = "Block Auto Meteor Shower Purchase",
-    CurrentValue = true,
-    Flag = "BlockAutoPurchase",
+ProtectionSection:AddToggle("BlockAutoPurchase", {
+    Title = "Block Auto Meteor Shower Purchase",
+    Default = true,
+    Description = "Prevent automatic meteor shower purchases",
     Callback = function(Value)
         getgenv().preventAutoPurchase = Value
         if Value then
             blockAutoPurchase()
-            Rayfield:Notify({
-                Title = "Protection Enabled",
-                Content = "Automatic meteor shower purchases are now blocked",
-                Duration = 3
-            })
+            lib:Notification('Protection Enabled', 'Automatic meteor shower purchases are now blocked', 3)
         else
-            Rayfield:Notify({
-                Title = "Protection Disabled",
-                Content = "Automatic meteor shower purchases are now allowed",
-                Duration = 3
-            })
+            lib:Notification('Protection Disabled', 'Automatic meteor shower purchases are now allowed', 3)
         end
     end,
 })
 
 -- Manual meteor shower purchase button (for when users actually want it)
-Tab:CreateButton({
-    Name = "Manual Meteor Shower Purchase",
+ProtectionSection:AddButton({
+    Title = "Manual Meteor Shower Purchase",
     Callback = function()
         local ReplicatedStorage = game:GetService("ReplicatedStorage")
         local DialogueRemotes = ReplicatedStorage:FindFirstChild("DialogueRemotes")
@@ -1637,11 +1556,7 @@ Tab:CreateButton({
                 -- Restore protection
                 getgenv().preventAutoPurchase = oldProtection
                 
-                Rayfield:Notify({
-                    Title = "Manual Purchase",
-                    Content = "Attempted manual meteor shower purchase",
-                    Duration = 3
-                })
+                lib:Notification('Manual Purchase', 'Attempted manual meteor shower purchase', 3)
             end
         end
     end,
@@ -1649,3 +1564,13 @@ Tab:CreateButton({
 
 -- Initialize the protection on script load
 blockAutoPurchase()
+
+-- ✅ Config Tab for 3itx UI
+local ConfigTab = main:AddTab("Config")
+FlagsManager:SetLibrary(lib)
+FlagsManager:SetIgnoreIndexes({})
+FlagsManager:SetFolder("Config/DigGame")
+FlagsManager:InitSaveSystem(ConfigTab)
+
+-- ✅ Final success notification
+lib:Notification('zzz Hub Loaded', 'Dig to Earth\'s Core script loaded successfully!', 5)
