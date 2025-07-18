@@ -15,7 +15,7 @@ local FlagsManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/
 
 -- Create main window
 local main = lib:Load({
-    Title = '🟢 Luna Hub - Ink Game',
+    Title = '🟢 zzz Hub - Ink Game',
     ToggleButton = "rbxassetid://4483345998",
     BindGui = Enum.KeyCode.RightControl,
 })
@@ -267,13 +267,17 @@ function HideAndSeek.new()
 end
 
 function HideAndSeek:Start()
+    -- Prevent multiple starts
+    if self._IsStarted then return end
+    self._IsStarted = true
+    
     local ROLES_DATA = {
         IsHider = {Name = "Hider", Color = Color3.fromRGB(0, 255, 230), Flag = "Hiders"},
         IsHunter = {Name = "Hunter", Color = Color3.fromRGB(251, 0, 0), Flag = "Hunters"}
     }
 
     local Client = game:GetService("Players").LocalPlayer
-    local BoxObjects = {}
+    self._BoxObjects = self._BoxObjects or {}
 
     local function OnPlayerAdded(Player)
         if Player == Client then return end
@@ -286,16 +290,38 @@ function HideAndSeek:Start()
 
         local function OnCharacterAdded(Character)
             CharacterMaid:DoCleaning()
-            local RootPart = Character:WaitForChild("HumanoidRootPart")
+            local success, RootPart = pcall(function()
+                return Character:WaitForChild("HumanoidRootPart", 5)
+            end)
+            
+            if not success or not RootPart then return end
 
             local function OnRoleAdded(Role)
                 local RoleData = ROLES_DATA[Role]
-                table.insert(BoxObjects, self._ESP:Add(Character, {
-                    Name = "Role: " .. RoleData.Name .. " | " .. "Player Name: " .. Player.Name,
-                    Color = RoleData.Color,
+                if self._ESP and RoleData then
+                    local espObject = self._ESP:Add(Character, {
+                        Name = "Role: " .. RoleData.Name .. " | " .. "Player Name: " .. Player.Name,
+                        Color = RoleData.Color,
+                        PrimaryPart = RootPart,
+                        IsEnabled = RoleData.Flag,
+                    })
+                    if espObject then
+                        table.insert(self._BoxObjects, espObject)
+                    end
+                end
+            end
+
+            -- Add general player ESP regardless of role
+            if self._ESP and Toggles.AllPlayersESP then
+                local generalESP = self._ESP:Add(Character, {
+                    Name = "Player: " .. Player.Name,
+                    Color = Color3.fromRGB(255, 255, 255),
                     PrimaryPart = RootPart,
-                    IsEnabled = RoleData.Flag,
-                }))
+                    IsEnabled = "Players",
+                })
+                if generalESP then
+                    table.insert(self._BoxObjects, generalESP)
+                end
             end
 
             for _, Attribute in ipairs({"IsHider", "IsHunter"}) do
@@ -325,18 +351,40 @@ function HideAndSeek:Start()
         task.spawn(OnPlayerAdded, Player)
     end
 
-    self._ESP.Players = true
-    self._ESP:Toggle(true)
+    -- Initialize ESP settings
+    if self._ESP then
+        self._ESP.Players = Toggles.AllPlayersESP or false
+        self._ESP.Boxes = Toggles.AllPlayersESP or false
+        self._ESP.Names = Toggles.AllPlayersESP or false
+        self._ESP.Distance = Toggles.DistanceESP or false
+        self._ESP.Tracers = Toggles.TracersESP or false
+        self._ESP.Hiders = Toggles.HiderESP or false
+        self._ESP.Hunters = Toggles.HunterESP or false
+        self._ESP:Toggle(true)
+    end
 
     warn("HideAndSeek feature started!")
 end
 
 function HideAndSeek:Destroy()
     warn("HideAndSeek feature destroyed!")
-    for _, Box in ipairs(self._BoxObjects or {}) do
-        Box:Remove()
+    self._IsStarted = false
+    
+    -- Clear all ESP objects safely
+    if self._BoxObjects then
+        for _, Box in ipairs(self._BoxObjects) do
+            if Box and Box.Remove then
+                pcall(function() Box:Remove() end)
+            end
+        end
+        self._BoxObjects = {}
     end
-    self._ESP:Toggle(false)
+    
+    -- Disable ESP safely
+    if self._ESP then
+        pcall(function() self._ESP:Toggle(false) end)
+    end
+    
     self._Maid:Destroy()
 end
 
@@ -444,8 +492,15 @@ VisualsSection:AddToggle("HiderESP", {
     Description = "Shows where hiders are located and their status",
     Callback = function(isEnabled)
         Toggles.HiderESP = isEnabled
-        if hideAndSeek._ESP then
-            hideAndSeek._ESP.Hiders = isEnabled
+        if isEnabled then
+            hideAndSeek:Start()
+            if hideAndSeek._ESP then
+                hideAndSeek._ESP.Hiders = true
+            end
+        else
+            if hideAndSeek._ESP then
+                hideAndSeek._ESP.Hiders = false
+            end
         end
     end,
 })
@@ -456,8 +511,15 @@ VisualsSection:AddToggle("HunterESP", {
     Description = "Shows where hunters are located and their status",
     Callback = function(isEnabled)
         Toggles.HunterESP = isEnabled
-        if hideAndSeek._ESP then
-            hideAndSeek._ESP.Hunters = isEnabled
+        if isEnabled then
+            hideAndSeek:Start()
+            if hideAndSeek._ESP then
+                hideAndSeek._ESP.Hunters = true
+            end
+        else
+            if hideAndSeek._ESP then
+                hideAndSeek._ESP.Hunters = false
+            end
         end
     end,
 })
@@ -473,6 +535,146 @@ VisualsSection:AddToggle("GlassBridgeESP", {
         else
             glassBridge:Destroy()
         end
+    end,
+})
+
+-- Add All Players ESP
+VisualsSection:AddToggle("AllPlayersESP", {
+    Title = "All Players ESP",
+    Default = false,
+    Description = "Shows ESP boxes around all players with names and distance",
+    Callback = function(isEnabled)
+        Toggles.AllPlayersESP = isEnabled
+        if isEnabled then
+            hideAndSeek:Start()
+            if hideAndSeek._ESP then
+                hideAndSeek._ESP.Players = true
+                hideAndSeek._ESP.Boxes = true
+                hideAndSeek._ESP.Names = true
+                hideAndSeek._ESP:Toggle(true)
+            end
+        else
+            if hideAndSeek._ESP then
+                hideAndSeek._ESP.Players = false
+                hideAndSeek._ESP.Boxes = false
+                hideAndSeek._ESP.Names = false
+            end
+        end
+    end,
+})
+
+-- Add Tracers ESP
+VisualsSection:AddToggle("TracersESP", {
+    Title = "Player Tracers",
+    Default = false,
+    Description = "Shows lines from screen center to all players",
+    Callback = function(isEnabled)
+        Toggles.TracersESP = isEnabled
+        if isEnabled then
+            hideAndSeek:Start()
+            if hideAndSeek._ESP then
+                hideAndSeek._ESP.Tracers = true
+            end
+        else
+            if hideAndSeek._ESP then
+                hideAndSeek._ESP.Tracers = false
+            end
+        end
+    end,
+})
+
+-- Add Distance ESP
+VisualsSection:AddToggle("DistanceESP", {
+    Title = "Distance Display",
+    Default = false,
+    Description = "Shows distance to all players in studs",
+    Callback = function(isEnabled)
+        Toggles.DistanceESP = isEnabled
+        if isEnabled then
+            hideAndSeek:Start()
+            if hideAndSeek._ESP then
+                hideAndSeek._ESP.Distance = true
+            end
+        else
+            if hideAndSeek._ESP then
+                hideAndSeek._ESP.Distance = false
+            end
+        end
+    end,
+})
+
+-- Add Item ESP Toggle
+VisualsSection:AddToggle("ItemESP", {
+    Title = "Item ESP",
+    Default = false,
+    Description = "Highlights collectible items and objects",
+    Callback = function(isEnabled)
+        Toggles.ItemESP = isEnabled
+        ItemESP:Toggle(isEnabled)
+    end,
+})
+
+-- ESP Control Buttons
+local ESPGroupButtons = VisualsSection:AddGroupButton()
+
+ESPGroupButtons:AddButton({
+    Title = "Enable All ESP",
+    Callback = function()
+        hideAndSeek:Start()
+        if hideAndSeek._ESP then
+            hideAndSeek._ESP.Players = true
+            hideAndSeek._ESP.Boxes = true
+            hideAndSeek._ESP.Names = true
+            hideAndSeek._ESP.Distance = true
+            hideAndSeek._ESP.Tracers = true
+            hideAndSeek._ESP.Hiders = true
+            hideAndSeek._ESP.Hunters = true
+            hideAndSeek._ESP:Toggle(true)
+        end
+        -- Enable Item ESP
+        ItemESP:Toggle(true)
+        -- Update all toggle states
+        Toggles.AllPlayersESP = true
+        Toggles.TracersESP = true
+        Toggles.DistanceESP = true
+        Toggles.HiderESP = true
+        Toggles.HunterESP = true
+        Toggles.ItemESP = true
+        lib:Notification('ESP System', 'All ESP features enabled!', 3)
+    end,
+})
+
+ESPGroupButtons:AddButton({
+    Title = "Clear All ESP",
+    Variant = "Outline",
+    Callback = function()
+        if hideAndSeek._ESP then
+            hideAndSeek._ESP.Players = false
+            hideAndSeek._ESP.Boxes = false
+            hideAndSeek._ESP.Names = false
+            hideAndSeek._ESP.Distance = false
+            hideAndSeek._ESP.Tracers = false
+            hideAndSeek._ESP.Hiders = false
+            hideAndSeek._ESP.Hunters = false
+            hideAndSeek._ESP:Toggle(false)
+        end
+        -- Clear all ESP objects
+        for _, Box in ipairs(hideAndSeek._BoxObjects or {}) do
+            if Box and Box.Remove then
+                Box:Remove()
+            end
+        end
+        hideAndSeek._BoxObjects = {}
+        -- Clear Item ESP
+        ItemESP:Clear()
+        -- Reset all toggle states
+        Toggles.AllPlayersESP = false
+        Toggles.TracersESP = false
+        Toggles.DistanceESP = false
+        Toggles.HiderESP = false
+        Toggles.HunterESP = false
+        Toggles.ItemESP = false
+        lib:Notification('ESP System', 'All ESP cleared!', 3)
     end,
 })
 
@@ -525,8 +727,62 @@ FlagsManager:SetIgnoreIndexes({})
 FlagsManager:SetFolder("Config/InkGame")
 FlagsManager:InitSaveSystem(ConfigTab)
 
--- Initialize ESP system
-hideAndSeek:Start()
+-- Add Item ESP functionality
+local ItemESP = {}
+ItemESP._enabled = false
+ItemESP._highlights = {}
+
+function ItemESP:Toggle(enabled)
+    self._enabled = enabled
+    if enabled then
+        self:Start()
+    else
+        self:Clear()
+    end
+end
+
+function ItemESP:Start()
+    self:Clear()
+    
+    -- Function to add highlight to items
+    local function addItemHighlight(item)
+        if not item or not item.Parent then return end
+        
+        local highlight = Instance.new("Highlight")
+        highlight.Parent = item
+        highlight.FillColor = Color3.fromRGB(255, 255, 0) -- Yellow for items
+        highlight.OutlineColor = Color3.fromRGB(255, 165, 0) -- Orange outline
+        highlight.FillTransparency = 0.5
+        highlight.OutlineTransparency = 0
+        
+        table.insert(self._highlights, highlight)
+    end
+    
+    -- Common item names to look for
+    local itemNames = {"Coin", "Powerup", "Item", "Tool", "Weapon", "Collectible"}
+    
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            for _, itemName in pairs(itemNames) do
+                if string.find(obj.Name:lower(), itemName:lower()) then
+                    addItemHighlight(obj)
+                    break
+                end
+            end
+        end
+    end
+end
+
+function ItemESP:Clear()
+    for _, highlight in pairs(self._highlights) do
+        if highlight and highlight.Parent then
+            highlight:Destroy()
+        end
+    end
+    self._highlights = {}
+end
+
+-- ESP system will be initialized when toggles are activated
 
 -- Final notification
 lib:Notification('Luna Hub', 'Ink Game script loaded successfully!', 5)
