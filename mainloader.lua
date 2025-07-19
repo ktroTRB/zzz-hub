@@ -14,23 +14,11 @@ local GAMES = {
         scripts = {
             {name = "Ghost Hub", url = "https://raw.githubusercontent.com/ktroTRB/zzz-hub/refs/heads/main/Ghost%20hub", color = Color3.fromRGB(0, 170, 255)},
             {name = "VRTX Hub", url = "https://raw.githubusercontent.com/ktroTRB/zzz-hub/refs/heads/main/vrtx.lua.txt", color = Color3.fromRGB(255, 0, 255)},
-            {name = "Arbix Hub", url = "https://raw.githubusercontent.com/ktroTRB/zzz-hub/refs/heads/main/Arbix%20Hub", color = Color3.fromRGB(0, 255, 127)},
-            {name = "Water Hub", url = "https://raw.githubusercontent.com/ktroTRB/zzz-hub/refs/heads/main/water%20hub.lua", color = Color3.fromRGB(0, 191, 255)},
+             {name = "Water Hub", url = "https://raw.githubusercontent.com/ktroTRB/zzz-hub/refs/heads/main/water%20hub.lua", color = Color3.fromRGB(0, 191, 255)},
             {name = "Luno Hub", url = "https://raw.githubusercontent.com/ktroTRB/zzz-hub/refs/heads/main/Luno%20hub", color = Color3.fromRGB(138, 43, 226)} 
         }
     },
-    
-    -- Murder Mystery 2
-    {
-        placeIds = {142823291, 335132309, 379614936},
-        name = "Murder Mystery 2",
-        emoji = "🔪",
-        scripts = {
-            {name = "Basic MM2", url = "your-mm2-basic-url", color = Color3.fromRGB(255, 0, 0)},
-            {name = "Advanced MM2", url = "your-mm2-advanced-url", color = Color3.fromRGB(150, 0, 0)}
-        }
-    },
-    
+ 
     -- Dig Game
     {
         placeIds = {126244816328678},
@@ -40,6 +28,8 @@ local GAMES = {
             {name = "ZZZ Hub", url = "https://raw.githubusercontent.com/ktroTRB/zzz-hub/refs/heads/main/dig.lua", color = Color3.fromRGB(139, 69, 19)}
         }
     },
+
+
     
     -- Dead Rails
     {
@@ -52,16 +42,8 @@ local GAMES = {
         }
     },
     
-    -- Blade Ball
-    {
-        placeIds = {13772394625, 14732610803},
-        name = "Blade Ball",
-        emoji = "⚔️",
-        scripts = {
-            {name = "Basic Blade", url = "your-blade-basic-url", color = Color3.fromRGB(128, 0, 128)},
-            {name = "Advanced Blade", url = "your-blade-advanced-url", color = Color3.fromRGB(75, 0, 130)}
-        }
-    },
+
+
     
     -- Musical Chairs
     {
