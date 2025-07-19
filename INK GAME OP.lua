@@ -1,12 +1,12 @@
-if not getgenv().shared then
+ if not getgenv().shared then
   getgenv().shared = {}
 end
 
-if not getgenv().ZZZ_HUB_loaded then
-  getgenv().ZZZ_HUB_loaded = true
+if not getgenv().DYHUB_loaded then
+  getgenv().DYHUB_loaded = true
 else
   local suc = pcall(function()
-      shared.ZZZ_HUB_InkGame_Library:Unload()
+      shared.DYHUB_InkGame_Library:Unload()
   end)
   if not suc then
       return 
@@ -28,16 +28,16 @@ local displayName = nametag:WaitForChild("DisplayName", 5)
 if not levelText or not displayName then return end
 
 local player = Players.LocalPlayer
-local isOwner = (player.Name == "inkgamehehw")
+local isOwner = (player.Name == "Yolmar_43")
 
-levelText.Text = isOwner and "[ zzz - OWNER ]" or "[ zzz hub - MEMBER ]"
+levelText.Text = isOwner and "[ DYHUB - OWNER ]" or "[ DYHUB - MEMBER ]"
 
 local wave = 0
 local rainbowHue = 0
 
 local messages = {
-  "zzz hub by ktro (discord.gg/PaRYpmJ4cG)",
-  "@" .. player.Name .. " (discord.gg/PaRYpmJ4cG)"
+  "DYHUB THE BEST (dsc.gg/dyhub)",
+  "@" .. player.Name .. " (dsc.gg/dyhub)"
 }
 local msgIndex = 1
 displayName.Text = messages[msgIndex]
@@ -66,7 +66,7 @@ RunService.RenderStepped:Connect(function(deltaTime)
 end)
 
 levelText:GetPropertyChangedSignal("Text"):Connect(function()
-  local correctText = isOwner and "[ zzz hub - OWNER ]" or "[ zzz hub - MEMBER ]"
+  local correctText = isOwner and "[ DYHUB - OWNER ]" or "[ DYHUB - MEMBER ]"
   if levelText.Text ~= correctText then
     levelText.Text = correctText
   end
@@ -81,35 +81,43 @@ player.CharacterAdded:Connect(applyEffects)
 
 local isNew = false
 pcall(function()
-  if not isfolder("zzz_hub_ktro") then makefolder("zzz_hub_ktro"); isNew = true; end
-  for _, v in pairs({"zzz_hub_ktro/ink_game", "zzz_hub_ktro/themes"}) do
+  if not isfolder("DYHUB_linoria") then makefolder("DYHUB_linoria"); isNew = true; end
+  for _, v in pairs({"DYHUB_linoria/ink_game", "DYHUB_linoria/themes"}) do
       if not isfolder(v) then makefolder(v); isNew = true; end
   end
-  for _, v in pairs({"zzz_hub_ktro/ink_game/settings", "zzz_hub_ktro/ink_game/themes"}) do
+  for _, v in pairs({"DYHUB_linoria/ink_game/settings", "DYHUB_linoria/ink_game/themes"}) do
       if not isfolder(v) then makefolder(v); isNew = true; end
   end
 
   if isNew then
-      writefile("zzz_hub_ktro/themes/default.txt", "Jester")
+      writefile("DYHUB_linoria/themes/default.txt", "Jester")
       local suc = pcall(function()
-          writefile("zzz_hub_ktro/ink_game/settings/default.json", game:HttpGet("https://raw.githubusercontent.com/Erchobg/VoidwareProfiles/refs/heads/main/InkGame/ink_game/settings/default.json", true))
+          writefile("DYHUB_linoria/ink_game/settings/default.json", game:HttpGet("https://raw.githubusercontent.com/Erchobg/VoidwareProfiles/refs/heads/main/InkGame/ink_game/settings/default.json", true))
       end)
       if suc then
-          writefile("zzz_hub_ktro/ink_game/settings/autoload.txt", "default")
+          writefile("DYHUB_linoria/ink_game/settings/autoload.txt", "default")
       end
   end
 end)
 
--- Removed VWExtra update log loading - keeping script clean with only 3itx UI
+task.spawn(function()
+  pcall(function()
+      if not isfile("Local_VW_Update_Log.json") then
+          shared.UpdateLogBypass = true
+      end
+  loadstring(game:HttpGet("https://raw.githubusercontent.com/VapeVoidware/VWExtra/main/VWUpdateLog.lua", true))()
+      shared.UpdateLogBypass = nil
+  end)
+end)
 
 --// Library \\--
 local lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/Just3itx/3itx-UI-LIB/refs/heads/main/Lib"))() 
 local FlagsManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/Just3itx/3itx-UI-LIB/refs/heads/main/ConfigManager"))()
 
-shared.ZZZ_HUB_InkGame_Library = lib
+shared.DYHUB_InkGame_Library = lib
 
 local main = lib:Load({
-    Title = 'zzz hub by ktro - Ink Game | Version: 3.0 | (discord.gg/PaRYpmJ4cG)',
+    Title = 'zzz - Ink Game | Version: 2.0  ',
     ToggleButton = "rbxassetid://10618644218",
     BindGui = Enum.KeyCode.RightControl,
 })
@@ -207,7 +215,7 @@ local Script = {
 local States = {}
 
 function Script.Functions.Alert(message: string, time_obj: number)
-  main:Notify("Alert", message, time_obj or 5)
+  Library:Notify(message, time_obj or 5)
 
   --if TogglesNotifySound..Value then
       local sound = Instance.new("Sound", workspace) do
@@ -220,7 +228,7 @@ function Script.Functions.Alert(message: string, time_obj: number)
 end
 
 function Script.Functions.Warn(message: string)
-  warn("WARN - zzz hub:", message)
+  warn("WARN - DYHUB:", message)
 end
 
 function Script.Functions.ESP(args: ESP)
@@ -526,7 +534,7 @@ Script.Functions.RevealGlassBridge = function()
       AnnouncementOneLine = true,
       FasterTween = true,
       DisplayTime = 10,
-      AnnouncementDisplayText = "[zzz hub]: Safe tiles are green, breakable tiles are red!"
+      AnnouncementDisplayText = "[DYHUB]: Safe tiles are green, breakable tiles are red!"
   })
 end
 
@@ -538,9 +546,9 @@ Script.Functions.OnLoad = function()
       end
   }
 
-  Script.Functions.EffectsNotification("zzz hub by ktro - Ink Game loaded!", 5)
-  Script.Functions.EffectsNotification("zzz hub - Press Fix Camera first!", 5)
-  Script.Functions.EffectsNotification("Join our (discord.gg/PaRYpmJ4cG)", 5)
+  Script.Functions.EffectsNotification("DYHUB - Ink Game loaded!", 5)
+  Script.Functions.EffectsNotification("DYHUB - Press Fix Camera first!", 5)
+  Script.Functions.EffectsNotification("Join our (dsc.gg/dyhub)", 5)
 end
 
 function Script.Functions.EffectsNotification(text, dur)
@@ -859,7 +867,7 @@ Script.Functions.FireForkRemote = function()
 end
 
 Script.Functions.JoinDiscordServer = function()
-  local sInvite = "https://discord.gg/PaRYpmJ4cG"
+  local sInvite = "https://dsc.gg/dyhub"
 
   local function getInviteCode(sInvite)
       for i = #sInvite, 1, -1 do
@@ -904,11 +912,11 @@ if success and result then
       })
 end
   pcall(function()
-      setclipboard("discord.gg/PaRYpmJ4cG")
+      setclipboard("dsc.gg/dyhub")
   end)
   game:GetService("StarterGui"):SetCore("SendNotification", {
-      Title = "zzz hub by ktro Discord - discord.gg/PaRYpmJ4cG",
-      Text = "Copied to clipboard (discord.gg/PaRYpmJ4cG)",
+      Title = "DYHUB Discord - dsc.gg/dyhub",
+      Text = "Copied to clipboard (dsc.gg/dyhub)",
       Duration = 10,
   })
 end
@@ -986,7 +994,7 @@ function Script.Functions.SetupOtherPlayerConnection(player: Player)
       end
   end
 
-  player.CharacterAdded:Connect(function(newCharacter)
+  Library:GiveSignal(player.CharacterAdded:Connect(function(newCharacter)
       task.delay(0.1, function()
           if Toggles.PlayerESP.Value then
               Script.Functions.PlayerESP(player)
@@ -1762,10 +1770,10 @@ RebelSection:AddToggle("ExpandGuardHitbox", {
     end,
 })
 
-local InformationSection = Main:AddSection({Title = "Information", Description = "Welcome to zzz hub by ktro information and controls", Defualt = false , Locked = false})
+local InformationSection = Main:AddSection({Title = "Information", Description = "Welcome to DYHUB information and controls", Defualt = false , Locked = false})
 
 InformationSection:AddParagraph({
-    Title = "Welcome to zzz hub by ktro!",
+    Title = "Welcome to DYHUB!",
     Content = "Make sure to join our discord server for updates!"
 })
 
@@ -1832,8 +1840,8 @@ function Script.Functions.HookEmotesFolder()
   Script.Functions.RefreshEmoteList()
   local Animations = ReplicatedStorage:WaitForChild("Animations")
   local Emotes = Animations:WaitForChild("Emotes")
-  Emotes.ChildAdded:Connect(Script.Functions.RefreshEmoteList)
-  Emotes.ChildRemoved:Connect(Script.Functions.RefreshEmoteList)
+  Library:GiveSignal(Emotes.ChildAdded:Connect(Script.Functions.RefreshEmoteList))
+  Library:GiveSignal(Emotes.ChildRemoved:Connect(Script.Functions.RefreshEmoteList))
 end
 
 function Script.Functions.ValidateEmote(emote : string)
@@ -1949,18 +1957,18 @@ Toggles.AntiRagdoll:OnChanged(function()
           repeat
               task.wait()
               Script.Functions.BypassRagdoll()
-          until not Toggles.AntiRagdoll.Value
+          until not Toggles.AntiRagdoll.Value or Library.Unloaded
       end)
   else
       Script.Functions.Alert("Anti Ragdoll + No Stun Disabled", 3)
   end
 end)
 
-workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+Library:GiveSignal(workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
   if workspace.CurrentCamera then
       camera = workspace.CurrentCamera
   end
-end)
+end))
 
 Toggles.FOVToggle:OnChanged(function(call)
   if call then
@@ -1971,7 +1979,7 @@ Toggles.FOVToggle:OnChanged(function(call)
                   camera.FieldOfView = Options.FOVSlider.Value
               end
               task.wait()
-          until not Toggles.FOVToggle.Value
+          until not Toggles.FOVToggle.Value or Library.Unloaded
       end)
   end
 end)
@@ -2533,8 +2541,8 @@ MenuSection:AddButton({
 local CreditsSection = Settings:AddSection({Title = "Credits", Description = "Development team credits", Defualt = false , Locked = false})
 
 CreditsSection:AddParagraph({
-    Title = "zzz hub by ktro Development Team",
-    Content = "DEVELOPER - ktro\nUI - 3itx Library\nBYPASS - Advanced Anti-Cheat Bypass\nFEATURES - All Game Automation\n\nJoin our Discord: discord.gg/PaRYpmJ4cG"
+    Title = "DYHUB Development Team",
+    Content = "TEAM - Python / Dex\nSCRIPTER - Feature All\nUI - 3itx Library\nBYPASS - Disable Anti-Cheat All\nLOOPHOLES - Infinite Yield / Dex / Remote Spy\n\nFor Premium access: @dyumraisgoodguy#6969 on Discord"
 })
 
 -- Add Config tab with FlagsManager
@@ -2570,7 +2578,7 @@ ConfigSection:AddButton({
 })
 
 -- Initialize FlagsManager
-FlagsManager:Init("InkGame_zzz_hub_ktro", main)
+FlagsManager:Init("InkGame_DYHUB", main)
 
 -- Success notification
-main:Notify("zzz hub by ktro Loaded!", "Ink Game script loaded successfully with 3itx UI", 5)
+main:Notify("DYHUB Loaded!", "Ink Game script loaded successfully with 3itx UI", 5)
